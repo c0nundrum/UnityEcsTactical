@@ -40,7 +40,8 @@ public class TileHandler : MonoBehaviour
             typeof(RenderMesh),
             typeof(LocalToWorld),
             typeof(Translation),
-            typeof(NonUniformScale)
+            typeof(NonUniformScale),
+            typeof(NeighbourTiles)
         );
 
 
@@ -71,14 +72,133 @@ public class TileHandler : MonoBehaviour
                 entityManager.SetComponentData(entity, new Tile
                 {
                     walkable = true,
-                    coordinates = new float2(j, i)
+                    coordinates = new float2(j, i),
+                    ownerEntity = entity
                 });
-
-
 
                 loopCounter++;
             }
-        }   
+        }
+
+        //Setup Neighbour components
+        for (int i = 0; i < width * height; i++)
+        {
+            Entity entity = entityArray[i];
+            Tile tile = entityManager.GetComponentData<Tile>(entity);
+
+            if (i == 0) // First Tile
+            {
+                //Debug.Log("First Tile");
+                entityManager.SetComponentData(entity, new NeighbourTiles
+                {
+                    eTile = entityManager.GetComponentData<Tile>(entityArray[i + 1]),
+                    //eTileEntity = entityArray[i + 1],
+                    nTile = entityManager.GetComponentData<Tile>(entityArray[i + width]),
+                    //nTileEntity = entityArray[i + width],
+                });
+            }
+            else if (i < width - 1) // First Line
+            {
+                //Debug.Log("First Line");
+                entityManager.SetComponentData(entity, new NeighbourTiles
+                {
+                    eTile = entityManager.GetComponentData<Tile>(entityArray[i + 1]),
+                    //eTileEntity = entityArray[i + 1],
+                    nTile = entityManager.GetComponentData<Tile>(entityArray[i + width]),
+                    //nTileEntity = entityArray[i + width],
+                    wTile = entityManager.GetComponentData<Tile>(entityArray[i - 1]),
+                    //wTileEntity = entityArray[i - 1]
+                });
+            }
+            else if (i == width - 1) // End of first Line
+            {
+                //Debug.Log("End of first Line");
+                entityManager.SetComponentData(entity, new NeighbourTiles
+                {
+                    nTile = entityManager.GetComponentData<Tile>(entityArray[i + width]),
+                    //nTileEntity = entityArray[i + width],
+                    wTile = entityManager.GetComponentData<Tile>(entityArray[i - 1]),
+                    //wTileEntity = entityArray[i - 1]
+                });
+            }
+            else if (i % width == 0 && i / height < height - 1) // First Row, not last line
+            {
+                //Debug.Log("First Row");
+                entityManager.SetComponentData(entity, new NeighbourTiles
+                {
+                    eTile = entityManager.GetComponentData<Tile>(entityArray[i + 1]),
+                    //eTileEntity = entityArray[i + 1],
+                    nTile = entityManager.GetComponentData<Tile>(entityArray[i + width]),
+                    //nTileEntity = entityArray[i + width],
+                    sTile = entityManager.GetComponentData<Tile>(entityArray[i - width]),
+                    //sTileEntity = entityArray[i - width]
+                });
+            }
+            else if (i % width == width - 1 && i / height < height - 1) // Last Row, not last line
+            {
+                //Debug.Log("Last Row");
+                entityManager.SetComponentData(entity, new NeighbourTiles
+                {
+                    wTile = entityManager.GetComponentData<Tile>(entityArray[i - 1]),
+                    //wTileEntity = entityArray[i - 1],
+                    nTile = entityManager.GetComponentData<Tile>(entityArray[i + width]),
+                    //nTileEntity = entityArray[i + width],
+                    sTile = entityManager.GetComponentData<Tile>(entityArray[i - width]),
+                    //sTileEntity = entityArray[i - width]
+                });
+            }
+            else if (i % width == 0 && i / height == height - 1) // First Row Last Line
+            {
+                //Debug.Log("First Row Last Line");
+                entityManager.SetComponentData(entity, new NeighbourTiles
+                {
+                    eTile = entityManager.GetComponentData<Tile>(entityArray[i + 1]),
+                    //eTileEntity = entityArray[i + 1],
+                    sTile = entityManager.GetComponentData<Tile>(entityArray[i - width]),
+                    //sTileEntity = entityArray[i - width]
+                });
+            }
+            else if (i == (width * height) - 1) // Last Tile
+            {
+                //Debug.Log("Last Tile");
+                entityManager.SetComponentData(entity, new NeighbourTiles
+                {
+                    wTile = entityManager.GetComponentData<Tile>(entityArray[i - 1]),
+                    //wTileEntity = entityArray[i - 1],
+                    sTile = entityManager.GetComponentData<Tile>(entityArray[i - width]),
+                    //sTileEntity = entityArray[i - width]
+                });
+            }
+            else if (i / height == height - 1) // Last Line
+            {
+                //Debug.Log("Last Line");
+                entityManager.SetComponentData(entity, new NeighbourTiles
+                {
+                    wTile = entityManager.GetComponentData<Tile>(entityArray[i - 1]),
+                    //wTileEntity = entityArray[i - 1],
+                    eTile = entityManager.GetComponentData<Tile>(entityArray[i + 1]),
+                    //eTileEntity = entityArray[i + 1],
+                    sTile = entityManager.GetComponentData<Tile>(entityArray[i - width]),
+                    //sTileEntity = entityArray[i - width]
+                });
+            }
+            else
+            {
+                //Debug.Log("Everything Else");
+                entityManager.SetComponentData(entity, new NeighbourTiles
+                {
+                    wTile = entityManager.GetComponentData<Tile>(entityArray[i - 1]),
+                    //wTileEntity = entityArray[i - 1],
+                    eTile = entityManager.GetComponentData<Tile>(entityArray[i + 1]),
+                    //eTileEntity = entityArray[i + 1],
+                    sTile = entityManager.GetComponentData<Tile>(entityArray[i - width]),
+                    //sTileEntity = entityArray[i - width],
+                    nTile = entityManager.GetComponentData<Tile>(entityArray[i + width]),
+                    //nTileEntity = entityArray[i + width],
+                });
+            }
+
+        }
 
     }
 }

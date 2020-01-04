@@ -37,8 +37,8 @@ public class Actor : MonoBehaviour
             material = material
         });
 
-        entityManager.SetComponentData(entity, new MoveTo { move = true, position = float3.zero, moveSpeed = 40f });
-        entityManager.SetComponentData(entity, new SSoldier {currentCoordinates = new float2(0,0) });
+        entityManager.SetComponentData(entity, new MoveTo { move = true, position = float3.zero, moveSpeed = 10f });
+        entityManager.SetComponentData(entity, new SSoldier {currentCoordinates = new float2(0,0), speed = 4 });
 
     }
 

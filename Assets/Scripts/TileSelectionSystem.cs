@@ -17,12 +17,12 @@ public class TileSelectionSystem : ComponentSystem
         float3 worldMousePosition = Camera.main.ScreenToWorldPoint(screenMousePosition);
 
         Entities.WithAll<HoverTile, Tile, Translation>().ForEach((Entity entity, ref Tile tile, ref Translation translation) => {
-            float3 entityPosition = translation.Value;
-            if (entityPosition.x - 0.5 > worldMousePosition.x || entityPosition.x + 0.5 < worldMousePosition.x || entityPosition.y - 0.5 > worldMousePosition.y || entityPosition.y + 0.5 < worldMousePosition.y)
-            {
+            //float3 entityPosition = translation.Value;
+            //if (entityPosition.x - 0.5 > worldMousePosition.x || entityPosition.x + 0.5 < worldMousePosition.x || entityPosition.y - 0.5 > worldMousePosition.y || entityPosition.y + 0.5 < worldMousePosition.y)
+            //{
                 PostUpdateCommands.RemoveComponent(entity, typeof(HoverTile));
 
-            }
+            //}
         });
 
         Entities.WithAll<Tile, Translation>().ForEach((Entity entity, ref Translation translation, ref Tile tile) =>
