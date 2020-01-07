@@ -6,6 +6,7 @@ using Unity.Mathematics;
 
 public struct OccupiedTile : IComponentData { }
 
+//TODO - should be updated to use the DynamicBuffer for the mapping coordinates!
 public class CurrentTileSystem : ComponentSystem
 {
     private float2 currentCoordinates = new float2(0, 0);

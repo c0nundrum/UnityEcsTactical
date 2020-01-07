@@ -36,7 +36,7 @@ public class CalculateMoveSystem : ComponentSystem
                     Entities.WithAllReadOnly<Tile, NeighbourTiles>().ForEach((Entity targetEntity, ref Tile targetTile) => {
                         if(math.distance(targetTile.coordinates, selectedUnitTranslation) <= unitSpeed)
                         {
-                            Debug.Log("Distance = " + math.distance(targetTile.coordinates, selectedUnitTranslation));
+                            //Debug.Log("Distance = " + math.distance(targetTile.coordinates, selectedUnitTranslation));
                             PostUpdateCommands.AddComponent(targetEntity, new CanMove { });
                         }
                     });

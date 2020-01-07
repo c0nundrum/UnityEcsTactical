@@ -14,8 +14,9 @@ public class TileHandler : MonoBehaviour
 
     [SerializeField] private Mesh mesh;
     [SerializeField] private Material material;
-    [SerializeField] private int width;
-    [SerializeField] private int height;
+
+    public int width;
+    public int height;
 
     public Material tileSelectedMaterial;
     public Mesh tileSelectedMesh;
@@ -41,11 +42,15 @@ public class TileHandler : MonoBehaviour
             typeof(LocalToWorld),
             typeof(Translation),
             typeof(NonUniformScale),
-            typeof(NeighbourTiles)
+            typeof(NeighbourTiles),
+            typeof(PathfindingComponent)
         );
 
 
         entityManager.CreateEntity(entityArchetype, entityArray);
+
+        Entity e = entityManager.CreateEntity(typeof(MapBuffer));
+
 
         int loopCounter = 0;
         for (int i = 0; i < width; i++)
@@ -76,6 +81,12 @@ public class TileHandler : MonoBehaviour
                     ownerEntity = entity
                 });
 
+                entityManager.SetComponentData(entity, new PathfindingComponent
+                {
+                    coordinates = new float2(j, i),
+                    gCost = int.MaxValue
+                });
+
                 loopCounter++;
             }
         }
@@ -85,6 +96,11 @@ public class TileHandler : MonoBehaviour
         {
             Entity entity = entityArray[i];
             Tile tile = entityManager.GetComponentData<Tile>(entity);
+
+            //Bug, need to add it every iteration or it gets deallocated
+            DynamicBuffer<MapBuffer> bufferFromEntity = entityManager.GetBuffer<MapBuffer>(e);
+            DynamicBuffer<Tile> tileBuffer = bufferFromEntity.Reinterpret<Tile>();
+            tileBuffer.Add(tile);
 
             if (i == 0) // First Tile
             {
@@ -199,6 +215,5 @@ public class TileHandler : MonoBehaviour
             }
 
         }
-
     }
 }
