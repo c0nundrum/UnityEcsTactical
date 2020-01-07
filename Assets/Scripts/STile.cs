@@ -25,6 +25,7 @@ public struct NeighbourTiles : IComponentData
 
 public struct PathfindingComponent : IComponentData
 {
+    public bool isPath;
     public Tile cameFromTile;
     public float2 coordinates;
     public int gCost;

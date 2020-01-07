@@ -83,6 +83,7 @@ public class TileHandler : MonoBehaviour
 
                 entityManager.SetComponentData(entity, new PathfindingComponent
                 {
+                    isPath = false,
                     coordinates = new float2(j, i),
                     gCost = int.MaxValue
                 });
