@@ -53,3 +53,21 @@ public struct MapBuffer : IBufferElementData
         return new MapBuffer { tile = e };
     }
 }
+
+[InternalBufferCapacity(8)]
+public struct MapEntityBuffer : IBufferElementData
+{
+    public Entity entity;
+
+    // The following implicit conversions are optional, but can be convenient.
+    public static implicit operator Entity(MapEntityBuffer e)
+    {
+        return e.entity;
+    }
+
+    public static implicit operator MapEntityBuffer(Entity e)
+    {
+        return new MapEntityBuffer { entity = e };
+    }
+}
+

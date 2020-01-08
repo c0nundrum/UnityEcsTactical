@@ -4,36 +4,82 @@ using UnityEngine;
 using Unity.Entities;
 using Unity.Collections;
 using Unity.Mathematics;
+using Unity.Jobs;
+
+//public struct PathTile : IComponentData { }
+//public struct OpenTile : IComponentData { }
+
+public struct UpdatePathFindingJob : IJob
+{
+    [ReadOnly]
+    public int gCost;
+    [ReadOnly]
+    public int hCost;
+    [ReadOnly]
+    public bool isPath;
+    [ReadOnly]
+    public Tile tile;
+
+    public ComponentDataFromEntity<PathfindingComponent> componentFromData;
+
+    public Entity entity;
+
+    public void Execute()
+    {
+       if (componentFromData.Exists(entity))
+        {
+            var coordinates = componentFromData[entity].coordinates;
+            componentFromData[entity] = new PathfindingComponent
+            {
+                coordinates = coordinates,
+                gCost = gCost,
+                hCost = hCost,
+                isPath = isPath,
+                cameFromTile = tile
+            };
+        }
+    }
+}
 
 public class Pathfinding : ComponentSystem
 {
     //Holds the map
     DynamicBuffer<Tile> tileBuffer;
+    DynamicBuffer<Entity> entityBuffer;
 
     private const int MOVE_STRAIGHT_COST = 10;
     private const int MOVE_DIAGONAL_COST = 14;
 
     private PathfindingComponent rootNode;
     private PathfindingComponent startNode;
+    private Tile startTile;
     private PathfindingComponent endNode;
 
-    private List<PathfindingComponent> openList;
-    private List<PathfindingComponent> closedList;
+    private List<Entity> openList;
+    private List<Entity> closedList;
     private float2 selectedUnitTranslation;
+
+    private Entity startTileEntity;
+    private Entity targetTileEntity;
 
     private NativeArray<Tile> tilePath;
 
     protected override void OnUpdate()
     {
         //Updates the current map buffer
-        Entities.ForEach((DynamicBuffer<MapBuffer> buffer) =>
+        //Entities.ForEach((DynamicBuffer<MapBuffer> buffer) =>
+        //{
+        //    //foreach (var element in buffer.Reinterpret<Tile>())
+        //    //{
+        //    //    Debug.Log(element.coordinates);
+        //    //}
+        //    tileBuffer = buffer.Reinterpret<Tile>();
+        //    //Debug.Log(getTileAt(1, 0).coordinates);
+        //});
+
+        Entities.ForEach((DynamicBuffer<MapEntityBuffer> buffer) =>
         {
-            //foreach (var element in buffer.Reinterpret<Tile>())
-            //{
-            //    Debug.Log(element.coordinates);
-            //}
-            tileBuffer = buffer.Reinterpret<Tile>();
-            //Debug.Log(getTileAt(1, 0).coordinates);
+            entityBuffer = buffer.Reinterpret<Entity>();
         });
 
         Entities.WithAllReadOnly<UnitSelected, SSoldier>().ForEach((Entity entity, ref SSoldier soldier) =>
@@ -41,12 +87,14 @@ public class Pathfinding : ComponentSystem
             this.selectedUnitTranslation = soldier.currentCoordinates;
         });
 
-        Entities.WithAll<Tile, PathfindingComponent>().ForEach((Entity entity, ref Tile tile, ref PathfindingComponent pathfindingComponent) =>
+        Entities.WithAll<OccupiedTile>().ForEach((Entity entity) =>
         {
-            if (tile.coordinates.x == selectedUnitTranslation.x && tile.coordinates.y == selectedUnitTranslation.y)
-            {
-                this.startNode = pathfindingComponent;
-            }
+            this.startTileEntity = entity;
+        });
+
+        Entities.WithAll<HoverTile>().ForEach((Entity entity) =>
+        {
+            this.targetTileEntity = entity;
         });
 
         //Target
@@ -57,93 +105,136 @@ public class Pathfinding : ComponentSystem
 
         if (Input.GetMouseButton(0))
         {
-            //List<Tile> path = findPath();
-            //if(path != null)
+            //THIS IS HOW TO SET DATA
+            //foreach (Entity entity in entityBuffer)
             //{
-            //    for (int i = 0; i < path.Count - 1; i++)
-            //    {
-            //        Debug.DrawLine(new Vector3(path[i].coordinates.x, path[i].coordinates.y) * 10f + Vector3.one * 5f, new Vector3(path[i + 1].coordinates.x, path[i + 1].coordinates.y) * 10f + Vector3.one * 5f, Color.green);
-            //        //Debug.Log("called");
-            //    }
+            //    Tile tile = EntityManager.GetComponentData<Tile>(entity);
+            //    tile.walkable = false;
+            //    PostUpdateCommands.SetComponent<Tile>(entity, tile);
+                
             //}
-            float3 screenMousePosition = Input.mousePosition;
-            float3 worldMousePosition = Camera.main.ScreenToWorldPoint(screenMousePosition);
-            Tile tile = getTileAt((int) math.floor(worldMousePosition.x), (int)math.floor(worldMousePosition.y));
-            Debug.Log(worldMousePosition.x % 1);
+            this.resetPaths();
+            List<Entity> path = findPath();
+            if (path != null)
+            {
+                for (int i = 0; i < path.Count - 1; i++)
+                {
+                    Tile tileFromPath = EntityManager.GetComponentData<Tile>(path[i]);
+                    Tile nextTileFromPath = EntityManager.GetComponentData<Tile>(path[i + 1]);
+                    Debug.Log("Calling");
+                    Debug.DrawLine(new Vector3(tileFromPath.coordinates.x, tileFromPath.coordinates.y, 0), new Vector3(nextTileFromPath.coordinates.x, nextTileFromPath.coordinates.y, 0), Color.red, 5f, false);
+                }
+            }
 
         }
 
     }
 
-    private PathfindingComponent getPathFindingComponentAt(int x, int y)
+    private Tile getTileFromEntityAt(int x, int y)
     {
-        Tile tile = getTileAt(x, y);
-
-        ComponentDataFromEntity<PathfindingComponent> myTypeFromEntity = GetComponentDataFromEntity<PathfindingComponent>(false);
-
-        if (myTypeFromEntity.Exists(tile.ownerEntity))
-        {
-            return myTypeFromEntity[tile.ownerEntity];
-        } else
-        {
-            Debug.Log("Missed one cell at:" + tile.coordinates);
-            return new PathfindingComponent { coordinates = new float2(-1, -1) };
-        }
-
+        Entity entity = entityBuffer[y * TileHandler.instance.height + x];
+        return EntityManager.GetComponentData<Tile>(entity);
     }
 
-    private Tile getTileAt(int x, int y)
+    private PathfindingComponent getPathFindingFromEntityAt(int x, int y)
     {
-        return tileBuffer[y * TileHandler.instance.height + x];
+        Entity entity = entityBuffer[y * TileHandler.instance.height + x];
+        return EntityManager.GetComponentData<PathfindingComponent>(entity);
     }
 
-
-
-    private List<Tile> findPath()
+    private Entity getEntityAt(int x, int y)
     {
-        openList = new List<PathfindingComponent>() { startNode };
-        closedList = new List<PathfindingComponent>();
+        return entityBuffer[y * TileHandler.instance.height + x];    
+    }
+
+    private void resetPaths()
+    {
         Entities.WithAll<Tile, PathfindingComponent>().ForEach((Entity entity, ref Tile tile, ref PathfindingComponent pathfindingComponent) =>
         {
             pathfindingComponent.isPath = false;
             pathfindingComponent.gCost = int.MaxValue;
             pathfindingComponent.cameFromTile = tile;
         });
+    }
 
-        startNode.gCost = 0;
-        startNode.hCost = CalculateDistanceCost(startNode, endNode);
+    private List<Entity> findPath()
+    {
+        PathfindingComponent startNode = EntityManager.GetComponentData<PathfindingComponent>(startTileEntity);
+        PathfindingComponent endNode = EntityManager.GetComponentData<PathfindingComponent>(targetTileEntity);
+
+        openList = new List<Entity>() { startTileEntity };
+        closedList = new List<Entity>();
+
+        //startNode.gCost = 0;
+        //startNode.hCost = CalculateDistanceCost(startNode, endNode);
+
+        UpdatePathFindingJob job = new UpdatePathFindingJob
+        {
+            entity = startTileEntity,
+            gCost = 0,
+            hCost = CalculateDistanceCost(startNode, endNode),
+            isPath = startNode.isPath,
+            componentFromData = GetComponentDataFromEntity<PathfindingComponent>(),
+            tile = startNode.cameFromTile
+        };
+
+        JobHandle jobHandle = job.Schedule();
+
+        jobHandle.Complete();
+        //PostUpdateCommands.SetComponent<PathfindingComponent>(startTileEntity, startNode); //Commit updates to the enitity
 
         while (openList.Count > 0)
         {
-            PathfindingComponent currentNode = GetLowestFCostNode(openList);
-            if (currentNode.Equals(endNode))
+            Entity currentEntity = GetLowestFCostNode(openList);
+
+            PathfindingComponent currentNode = EntityManager.GetComponentData<PathfindingComponent>(currentEntity);
+
+            if (currentNode.coordinates.x == endNode.coordinates.x && currentNode.coordinates.y == endNode.coordinates.y)
             {
                 //Reached final node
-                return CalculatePath(endNode);
+                return CalculatePath(targetTileEntity);
             }
 
-            openList.Remove(currentNode);
-            closedList.Add(currentNode);
-
-            List<PathfindingComponent> neighbourList = GetNeighbours(currentNode);
+            openList.Remove(currentEntity);
+            closedList.Add(currentEntity);
+            
+            List<Entity> neighbourList = GetNeighbours(currentEntity);
 
             for (int i = 0; i < neighbourList.Count; i++)
             {
-                PathfindingComponent neighbourNode = neighbourList[i];
+                //here we are copying the obj, not creating a pointer, therefore it doesnt work
+                PathfindingComponent neighbourNode = EntityManager.GetComponentData<PathfindingComponent>(neighbourList[i]); 
 
-                if (closedList.Contains(neighbourNode)) continue;
+                if (closedList.Contains(neighbourList[i])) continue;
 
                 int tentativeGCost = currentNode.gCost + CalculateDistanceCost(currentNode, neighbourNode);
                 if (tentativeGCost < neighbourNode.gCost)
                 {
-                    neighbourNode.cameFromTile = getTileAt((int)math.floor(currentNode.coordinates.x), (int)math.floor(currentNode.coordinates.y));
-                    neighbourNode.isPath = true;
-                    neighbourNode.gCost = tentativeGCost;
-                    neighbourNode.hCost = CalculateDistanceCost(neighbourNode, endNode);
-
-                    if (!openList.Contains(neighbourNode))
+                    job = new UpdatePathFindingJob
                     {
-                        openList.Add(neighbourNode);
+                        entity = neighbourList[i],
+                        gCost = tentativeGCost,
+                        hCost = CalculateDistanceCost(neighbourNode, endNode),
+                        isPath = true,
+                        componentFromData = GetComponentDataFromEntity<PathfindingComponent>(),
+                        tile = EntityManager.GetComponentData<Tile>(currentEntity)
+                    };
+
+                    jobHandle = job.Schedule();
+
+                    jobHandle.Complete();
+
+                    //neighbourNode.cameFromTile = getTileAt((int)math.floor(currentNode.coordinates.x), (int)math.floor(currentNode.coordinates.y));
+                    //neighbourNode.cameFromTile = EntityManager.GetComponentData<Tile>(currentEntity);
+                    //neighbourNode.isPath = true;
+                    //neighbourNode.gCost = tentativeGCost;
+                    //neighbourNode.hCost = CalculateDistanceCost(neighbourNode, endNode);
+
+                    //PostUpdateCommands.SetComponent<PathfindingComponent>(neighbourList[i], neighbourNode); //Commit updates to the enitity
+
+                    if (!openList.Contains(neighbourList[i]))
+                    {
+                        openList.Add(neighbourList[i]);
                     }
                 }
             }
@@ -154,70 +245,92 @@ public class Pathfinding : ComponentSystem
         return null;
     }
 
-    private List<Tile> CalculatePath(PathfindingComponent endNode)
+    private List<Entity> CalculatePath(Entity endEntity)
     {
-        //NativeArray<Tile> nativePath = new NativeArray<Tile>();
-        List<Tile> path = new List<Tile>();
-        path.Add(endNode.cameFromTile);
+        PathfindingComponent endNode = EntityManager.GetComponentData<PathfindingComponent>(endEntity);
+
+        List<Entity> path = new List<Entity>();
+        path.Add(endEntity);
+        path.Add(endNode.cameFromTile.ownerEntity);
 
         PathfindingComponent currentNode = endNode;
+
         while(currentNode.isPath)
         {
-            path.Add(currentNode.cameFromTile);
-            currentNode = getPathFindingComponentAt((int)math.floor(currentNode.cameFromTile.coordinates.x), (int)math.floor(currentNode.cameFromTile.coordinates.y));
+            path.Add(currentNode.cameFromTile.ownerEntity);
+            currentNode = getPathFindingFromEntityAt((int)math.floor(currentNode.cameFromTile.coordinates.x), (int)math.floor(currentNode.cameFromTile.coordinates.y));
         }
         path.Reverse();
+
+        for (int i = 0; i< path.Count; i++)
+        {
+            PathfindingComponent node = EntityManager.GetComponentData<PathfindingComponent>(path[i]);
+            Debug.Log(node.coordinates);
+        }
+
+        foreach(Entity en in path)
+        {
+            PathfindingComponent node = EntityManager.GetComponentData<PathfindingComponent>(en);
+            Debug.Log(node.coordinates);
+        }
+
         return path;
     }
 
-    private List<PathfindingComponent> GetNeighbours(PathfindingComponent currentNode)
+    private List<Entity> GetNeighbours(Entity currentEntity)
     {
-        List<PathfindingComponent> neighbourList = new List<PathfindingComponent>();
-        if(currentNode.coordinates.x -1 >= 0)
+        List<Entity> neighbourList = new List<Entity>();
+        PathfindingComponent currentNode = EntityManager.GetComponentData<PathfindingComponent>(currentEntity);
+
+        if (currentNode.coordinates.x -1 >= 0)
         {
             //Left
-            neighbourList.Add(getPathFindingComponentAt((int)math.floor(currentNode.coordinates.x - 1), (int)math.floor(currentNode.coordinates.y)));
+            neighbourList.Add(getEntityAt((int)math.floor(currentNode.coordinates.x - 1), (int)math.floor(currentNode.coordinates.y)));
             //Left Down
-            if (currentNode.coordinates.y - 1 >= 0) neighbourList.Add(getPathFindingComponentAt((int)math.floor(currentNode.coordinates.x - 1), (int)math.floor(currentNode.coordinates.y - 1)));
+            if (currentNode.coordinates.y - 1 >= 0) neighbourList.Add(getEntityAt((int)math.floor(currentNode.coordinates.x - 1), (int)math.floor(currentNode.coordinates.y - 1)));
             //Left Up
-            if (currentNode.coordinates.y + 1 < TileHandler.instance.height) neighbourList.Add(getPathFindingComponentAt((int)math.floor(currentNode.coordinates.x - 1), (int)math.floor(currentNode.coordinates.y + 1)));
+            if (currentNode.coordinates.y + 1 < TileHandler.instance.height) neighbourList.Add(getEntityAt((int)math.floor(currentNode.coordinates.x - 1), (int)math.floor(currentNode.coordinates.y + 1)));
         }
         if(currentNode.coordinates.x + 1 < TileHandler.instance.width)
         {
             //Right
-            neighbourList.Add(getPathFindingComponentAt((int)math.floor(currentNode.coordinates.x + 1), (int)math.floor(currentNode.coordinates.y)));
+            neighbourList.Add(getEntityAt((int)math.floor(currentNode.coordinates.x + 1), (int)math.floor(currentNode.coordinates.y)));
             //Right Down
-            if (currentNode.coordinates.y - 1 >= 0) neighbourList.Add(getPathFindingComponentAt((int)math.floor(currentNode.coordinates.x + 1), (int)math.floor(currentNode.coordinates.y - 1)));
+            if (currentNode.coordinates.y - 1 >= 0) neighbourList.Add(getEntityAt((int)math.floor(currentNode.coordinates.x + 1), (int)math.floor(currentNode.coordinates.y - 1)));
             //Right Up
-            if (currentNode.coordinates.y + 1 < TileHandler.instance.height) neighbourList.Add(getPathFindingComponentAt((int)math.floor(currentNode.coordinates.x + 1), (int)math.floor(currentNode.coordinates.y + 1)));
+            if (currentNode.coordinates.y + 1 < TileHandler.instance.height) neighbourList.Add(getEntityAt((int)math.floor(currentNode.coordinates.x + 1), (int)math.floor(currentNode.coordinates.y + 1)));
         }
         //Down
-        if (currentNode.coordinates.y - 1 >= 0) neighbourList.Add(getPathFindingComponentAt((int)math.floor(currentNode.coordinates.x), (int)math.floor(currentNode.coordinates.y - 1)));
+        if (currentNode.coordinates.y - 1 >= 0) neighbourList.Add(getEntityAt((int)math.floor(currentNode.coordinates.x), (int)math.floor(currentNode.coordinates.y - 1)));
         //Up
-        if (currentNode.coordinates.y + 1 < TileHandler.instance.height) neighbourList.Add(getPathFindingComponentAt((int)math.floor(currentNode.coordinates.x), (int)math.floor(currentNode.coordinates.y + 1)));
+        if (currentNode.coordinates.y + 1 < TileHandler.instance.height) neighbourList.Add(getEntityAt((int)math.floor(currentNode.coordinates.x), (int)math.floor(currentNode.coordinates.y + 1)));
 
         return neighbourList;
+
     }
 
     private int CalculateDistanceCost(PathfindingComponent a, PathfindingComponent b)
     {
         int xDistance = (int)math.abs(a.coordinates.x - b.coordinates.x);
         int yDistance = (int)math.abs(a.coordinates.y - b.coordinates.y);
-        int remaining = math.abs(xDistance = yDistance);
+        int remaining = math.abs(xDistance - yDistance);
         return MOVE_DIAGONAL_COST * math.min(xDistance, yDistance) + MOVE_STRAIGHT_COST * remaining;
     }
 
-    private PathfindingComponent GetLowestFCostNode(List<PathfindingComponent> componentList)
+    private Entity GetLowestFCostNode(List<Entity> entityList)
     {
-        PathfindingComponent lowestFCostNode = componentList[0];
-        for (int i = 1; i < componentList.Count; i++)
+        Entity lowestFCostEntity = entityList[0];
+        PathfindingComponent lowestFCostNode = EntityManager.GetComponentData<PathfindingComponent>(entityList[0]);
+        for (int i = 1; i < entityList.Count; i++)
         {
-            if (componentList[i].getFCost() < lowestFCostNode.getFCost())
+            PathfindingComponent component = EntityManager.GetComponentData<PathfindingComponent>(entityList[i]);
+            if (component.gCost + component.hCost < lowestFCostNode.gCost + lowestFCostNode.hCost)
             {
-                lowestFCostNode = componentList[i];
+                lowestFCostEntity = entityList[i];
+                lowestFCostNode = component;
             }
         }
-        return lowestFCostNode;
+        return lowestFCostEntity;
     }
 
 }

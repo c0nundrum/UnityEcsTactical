@@ -50,6 +50,7 @@ public class TileHandler : MonoBehaviour
         entityManager.CreateEntity(entityArchetype, entityArray);
 
         Entity e = entityManager.CreateEntity(typeof(MapBuffer));
+        Entity f = entityManager.CreateEntity(typeof(MapEntityBuffer));
 
 
         int loopCounter = 0;
@@ -85,7 +86,8 @@ public class TileHandler : MonoBehaviour
                 {
                     isPath = false,
                     coordinates = new float2(j, i),
-                    gCost = int.MaxValue
+                    gCost = int.MaxValue,
+                    hCost = 0
                 });
 
                 loopCounter++;
@@ -102,6 +104,9 @@ public class TileHandler : MonoBehaviour
             DynamicBuffer<MapBuffer> bufferFromEntity = entityManager.GetBuffer<MapBuffer>(e);
             DynamicBuffer<Tile> tileBuffer = bufferFromEntity.Reinterpret<Tile>();
             tileBuffer.Add(tile);
+            DynamicBuffer<MapEntityBuffer> entityBufferFromEntity = entityManager.GetBuffer<MapEntityBuffer>(f);
+            DynamicBuffer<Entity> entityBuffer = entityBufferFromEntity.Reinterpret<Entity>();
+            entityBuffer.Add(entity);
 
             if (i == 0) // First Tile
             {
