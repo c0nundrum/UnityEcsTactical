@@ -16,12 +16,10 @@ public class CalculateMoveSystem : ComponentSystem
     protected override void OnUpdate()
     {
 
-
-
         Entities.WithAllReadOnly<UnitSelected, SSoldier>().ForEach((Entity entity, ref SSoldier soldier) =>
         {
             this.selectedUnitTranslation = soldier.currentCoordinates;
-            this.unitSpeed = soldier.speed;
+            this.unitSpeed = soldier.Movement;
         });
 
         Entities.WithAllReadOnly<CanMove>().ForEach((Entity entity) =>

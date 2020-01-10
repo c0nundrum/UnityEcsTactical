@@ -17,7 +17,7 @@ public class UnitControl : ComponentSystem
                 this.tile = tile;
             });
             Entities.WithAll<UnitSelected>().ForEach((Entity entity, ref MoveTo moveTo, ref SSoldier soldier) => {
-                soldier.speed = (int)math.floor(soldier.speed - math.distance(soldier.currentCoordinates, new float2(tile.coordinates.x, tile.coordinates.y)));
+                soldier.Movement = (int)math.floor(soldier.Movement - math.distance(soldier.currentCoordinates, new float2(tile.coordinates.x, tile.coordinates.y)));
                 soldier.currentCoordinates = new float2(tile.coordinates.x, tile.coordinates.y);               
                 moveTo.position = new float3(tile.coordinates.x, tile.coordinates.y, 0f);
                 moveTo.move = true;

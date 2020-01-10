@@ -6,8 +6,8 @@ using Unity.Collections;
 using Unity.Mathematics;
 using Unity.Jobs;
 
-//public struct PathTile : IComponentData { }
-//public struct OpenTile : IComponentData { }
+
+public struct ReadyToMove : IComponentData { public Tile Destination; }
 
 public struct UpdatePathFindingJob : IJob
 {
@@ -61,30 +61,24 @@ public class Pathfinding : ComponentSystem
 
     private Entity startTileEntity;
     private Entity targetTileEntity;
+    private Entity selectedUnit;
+
+    private bool isMoving;
 
     private NativeArray<Tile> tilePath;
 
     protected override void OnUpdate()
     {
-        //Updates the current map buffer
-        //Entities.ForEach((DynamicBuffer<MapBuffer> buffer) =>
-        //{
-        //    //foreach (var element in buffer.Reinterpret<Tile>())
-        //    //{
-        //    //    Debug.Log(element.coordinates);
-        //    //}
-        //    tileBuffer = buffer.Reinterpret<Tile>();
-        //    //Debug.Log(getTileAt(1, 0).coordinates);
-        //});
-
         Entities.ForEach((DynamicBuffer<MapEntityBuffer> buffer) =>
         {
             entityBuffer = buffer.Reinterpret<Entity>();
         });
 
-        Entities.WithAllReadOnly<UnitSelected, SSoldier>().ForEach((Entity entity, ref SSoldier soldier) =>
+        Entities.WithAll<UnitSelected, SSoldier, MoveTo>().ForEach((Entity entity, ref SSoldier soldier, ref MoveTo moveTo) =>
         {
             this.selectedUnitTranslation = soldier.currentCoordinates;
+            this.selectedUnit = entity;
+            this.isMoving = moveTo.longMove;
         });
 
         Entities.WithAll<OccupiedTile>().ForEach((Entity entity) =>
@@ -92,7 +86,7 @@ public class Pathfinding : ComponentSystem
             this.startTileEntity = entity;
         });
 
-        Entities.WithAll<HoverTile>().ForEach((Entity entity) =>
+        Entities.WithAll<HoverTile, CanMove>().ForEach((Entity entity) =>
         {
             this.targetTileEntity = entity;
         });
@@ -105,25 +99,66 @@ public class Pathfinding : ComponentSystem
 
         if (Input.GetMouseButton(0))
         {
-            //THIS IS HOW TO SET DATA
+            //THIS IS HOW TO SET DATA, only gets set in the next cycle this way, needs a job if you want to set it now
             //foreach (Entity entity in entityBuffer)
             //{
             //    Tile tile = EntityManager.GetComponentData<Tile>(entity);
             //    tile.walkable = false;
             //    PostUpdateCommands.SetComponent<Tile>(entity, tile);
-                
+
             //}
-            this.resetPaths();
-            List<Entity> path = findPath();
-            if (path != null)
+            
+            if (!isMoving)
             {
-                for (int i = 0; i < path.Count - 1; i++)
+                //Resets all paths to default value
+                this.resetPaths();
+
+                //Initializes path as null, next line is legacy code
+                //List<Entity> path = findPath();
+                List<Entity> path = null;
+
+                //If its a tile that can be moved to
+                ComponentDataFromEntity<CanMove> canItMove = GetComponentDataFromEntity<CanMove>(true);
+                if (canItMove.Exists(targetTileEntity))
                 {
-                    Tile tileFromPath = EntityManager.GetComponentData<Tile>(path[i]);
-                    Tile nextTileFromPath = EntityManager.GetComponentData<Tile>(path[i + 1]);
-                    Debug.Log("Calling");
-                    Debug.DrawLine(new Vector3(tileFromPath.coordinates.x, tileFromPath.coordinates.y, 0), new Vector3(nextTileFromPath.coordinates.x, nextTileFromPath.coordinates.y, 0), Color.red, 5f, false);
+                    path = findPath();
                 }
+                if (path != null)
+                {
+                    DynamicBuffer<MapBuffer> currentPathBuffer = EntityManager.AddBuffer<MapBuffer>(selectedUnit);
+                    MoveTo moveTo = EntityManager.GetComponentData<MoveTo>(selectedUnit);
+
+                    moveTo.positionInMove = 0;
+                    PostUpdateCommands.SetComponent<MoveTo>(selectedUnit, moveTo );
+
+                    //Element 0 is always the currently occupied tile, therefore not needed
+                    for (int i = 1; i < path.Count - 1; i++)
+                    {
+                        Tile tileFromPath = EntityManager.GetComponentData<Tile>(path[i]);
+
+                        //Check for duplicate tiles
+                        if(tileFromPath.coordinates.Equals(EntityManager.GetComponentData<Tile>(path[i - 1]).coordinates)) { continue; }
+
+                        //If its not duplicate, add it
+                        currentPathBuffer.Add(tileFromPath);
+
+                        //Debug
+                        //Tile nextTileFromPath = EntityManager.GetComponentData<Tile>(path[i + 1]);
+                        //Debug.DrawLine(new Vector3(tileFromPath.coordinates.x, tileFromPath.coordinates.y, 0), new Vector3(nextTileFromPath.coordinates.x, nextTileFromPath.coordinates.y, 0), Color.red, 5f, false);
+                    }
+
+                    //Add the last tile, not added due to debugging line inside the for
+                    currentPathBuffer.Add(EntityManager.GetComponentData<Tile>(path[path.Count - 1]));
+
+                    //Adds the component that fires the movement event after the update has happened entirely, might be moved to a job later
+                    PostUpdateCommands.AddComponent<ReadyToMove>(selectedUnit, new ReadyToMove { Destination = EntityManager.GetComponentData<Tile>(path[path.Count - 1]) });
+
+                    //foreach (var item in currentPathBuffer)
+                    //{
+                    //    Debug.Log(item.tile.coordinates);
+                    //}
+                }
+
             }
 
         }
@@ -165,9 +200,6 @@ public class Pathfinding : ComponentSystem
         openList = new List<Entity>() { startTileEntity };
         closedList = new List<Entity>();
 
-        //startNode.gCost = 0;
-        //startNode.hCost = CalculateDistanceCost(startNode, endNode);
-
         UpdatePathFindingJob job = new UpdatePathFindingJob
         {
             entity = startTileEntity,
@@ -181,7 +213,6 @@ public class Pathfinding : ComponentSystem
         JobHandle jobHandle = job.Schedule();
 
         jobHandle.Complete();
-        //PostUpdateCommands.SetComponent<PathfindingComponent>(startTileEntity, startNode); //Commit updates to the enitity
 
         while (openList.Count > 0)
         {
@@ -210,6 +241,7 @@ public class Pathfinding : ComponentSystem
                 int tentativeGCost = currentNode.gCost + CalculateDistanceCost(currentNode, neighbourNode);
                 if (tentativeGCost < neighbourNode.gCost)
                 {
+                    //This can deffinitely be a parallell job
                     job = new UpdatePathFindingJob
                     {
                         entity = neighbourList[i],
@@ -223,14 +255,6 @@ public class Pathfinding : ComponentSystem
                     jobHandle = job.Schedule();
 
                     jobHandle.Complete();
-
-                    //neighbourNode.cameFromTile = getTileAt((int)math.floor(currentNode.coordinates.x), (int)math.floor(currentNode.coordinates.y));
-                    //neighbourNode.cameFromTile = EntityManager.GetComponentData<Tile>(currentEntity);
-                    //neighbourNode.isPath = true;
-                    //neighbourNode.gCost = tentativeGCost;
-                    //neighbourNode.hCost = CalculateDistanceCost(neighbourNode, endNode);
-
-                    //PostUpdateCommands.SetComponent<PathfindingComponent>(neighbourList[i], neighbourNode); //Commit updates to the enitity
 
                     if (!openList.Contains(neighbourList[i]))
                     {
@@ -261,18 +285,6 @@ public class Pathfinding : ComponentSystem
             currentNode = getPathFindingFromEntityAt((int)math.floor(currentNode.cameFromTile.coordinates.x), (int)math.floor(currentNode.cameFromTile.coordinates.y));
         }
         path.Reverse();
-
-        for (int i = 0; i< path.Count; i++)
-        {
-            PathfindingComponent node = EntityManager.GetComponentData<PathfindingComponent>(path[i]);
-            Debug.Log(node.coordinates);
-        }
-
-        foreach(Entity en in path)
-        {
-            PathfindingComponent node = EntityManager.GetComponentData<PathfindingComponent>(en);
-            Debug.Log(node.coordinates);
-        }
 
         return path;
     }

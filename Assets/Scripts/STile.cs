@@ -7,6 +7,7 @@ public struct Tile : IComponentData
     public bool walkable;
     public float2 coordinates;
     public Entity ownerEntity;
+    public int MovementCost;
 
 }
 

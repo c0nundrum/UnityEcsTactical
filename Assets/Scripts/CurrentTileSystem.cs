@@ -3,10 +3,12 @@ using System.Collections.Generic;
 using UnityEngine;
 using Unity.Entities;
 using Unity.Mathematics;
+using Unity.Jobs;
 
 public struct OccupiedTile : IComponentData { }
 
 //TODO - should be updated to use the DynamicBuffer for the mapping coordinates!
+[UpdateAfter(typeof(ActualMovementSystem))]
 public class CurrentTileSystem : ComponentSystem
 {
     private float2 currentCoordinates = new float2(0, 0);
@@ -14,7 +16,7 @@ public class CurrentTileSystem : ComponentSystem
     protected override void OnUpdate()
     {
 
-        Entities.WithAll<SSoldier>().ForEach((Entity entity, ref SSoldier soldier) => {
+        Entities.WithAll<SSoldier, UnitSelected>().ForEach((Entity entity, ref SSoldier soldier) => {
             currentCoordinates = soldier.currentCoordinates;
         });
 

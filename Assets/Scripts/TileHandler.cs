@@ -79,7 +79,8 @@ public class TileHandler : MonoBehaviour
                 {
                     walkable = true,
                     coordinates = new float2(j, i),
-                    ownerEntity = entity
+                    ownerEntity = entity,
+                    MovementCost = 1
                 });
 
                 entityManager.SetComponentData(entity, new PathfindingComponent
