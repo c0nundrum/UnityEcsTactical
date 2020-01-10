@@ -8,6 +8,7 @@ using Unity.Collections;
 
 public struct CanMove : IComponentData { }
 
+[UpdateAfter(typeof(UnitMoveSystem))]
 public class CalculateMoveSystem : ComponentSystem
 {
     private float2 selectedUnitTranslation;
@@ -31,7 +32,7 @@ public class CalculateMoveSystem : ComponentSystem
         {
             if (this.selectedUnitTranslation.x == tile.coordinates.x && this.selectedUnitTranslation.y == tile.coordinates.y)
             {
-                    Entities.WithAllReadOnly<Tile, NeighbourTiles>().ForEach((Entity targetEntity, ref Tile targetTile) => {
+                    Entities.WithNone<OccupiedTile>().WithAllReadOnly<Tile, NeighbourTiles>().ForEach((Entity targetEntity, ref Tile targetTile) => {
                         if(math.distance(targetTile.coordinates, selectedUnitTranslation) <= unitSpeed)
                         {
                             //Debug.Log("Distance = " + math.distance(targetTile.coordinates, selectedUnitTranslation));

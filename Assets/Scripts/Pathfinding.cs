@@ -84,11 +84,12 @@ public class Pathfinding : ComponentSystem
         Entities.WithAll<OccupiedTile>().ForEach((Entity entity) =>
         {
             this.startTileEntity = entity;
+            targetTileEntity = entity;
         });
 
         Entities.WithAll<HoverTile, CanMove>().ForEach((Entity entity) =>
         {
-            this.targetTileEntity = entity;
+            targetTileEntity = entity;
         });
 
         //Target
@@ -96,6 +97,8 @@ public class Pathfinding : ComponentSystem
         {
             this.endNode = pathfindingComponent;
         });
+
+        ComponentDataFromEntity<CanMove> canItMove = GetComponentDataFromEntity<CanMove>(true);
 
         if (Input.GetMouseButton(0))
         {
@@ -118,7 +121,7 @@ public class Pathfinding : ComponentSystem
                 List<Entity> path = null;
 
                 //If its a tile that can be moved to
-                ComponentDataFromEntity<CanMove> canItMove = GetComponentDataFromEntity<CanMove>(true);
+                
                 if (canItMove.Exists(targetTileEntity))
                 {
                     path = findPath();
