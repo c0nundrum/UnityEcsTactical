@@ -8,7 +8,9 @@ using Unity.Collections;
 
 public struct CanMove : IComponentData { }
 
-[UpdateAfter(typeof(UnitMoveSystem))]
+//Hardest Perfomance hit
+//[UpdateAfter(typeof(UnitMoveSystem))]
+[UpdateBefore(typeof(Pathfinding))]
 public class CalculateMoveSystem : ComponentSystem
 {
     private float2 selectedUnitTranslation;
@@ -16,6 +18,7 @@ public class CalculateMoveSystem : ComponentSystem
 
     protected override void OnUpdate()
     {
+
 
         Entities.WithAllReadOnly<UnitSelected, SSoldier>().ForEach((Entity entity, ref SSoldier soldier) =>
         {
@@ -30,16 +33,21 @@ public class CalculateMoveSystem : ComponentSystem
 
         Entities.WithAllReadOnly<OccupiedTile, Tile, NeighbourTiles>().ForEach((Entity entity, ref Tile tile, ref NeighbourTiles neighbourTiles) =>
         {
-            if (this.selectedUnitTranslation.x == tile.coordinates.x && this.selectedUnitTranslation.y == tile.coordinates.y)
+            var selectedUnities = Entities.WithAll<UnitSelected>().ToEntityQuery().CalculateEntityCount();
+            if (selectedUnities > 0)
             {
+                if (this.selectedUnitTranslation.x == tile.coordinates.x && this.selectedUnitTranslation.y == tile.coordinates.y)
+                {
                     Entities.WithNone<OccupiedTile>().WithAllReadOnly<Tile, NeighbourTiles>().ForEach((Entity targetEntity, ref Tile targetTile) => {
-                        if(math.distance(targetTile.coordinates, selectedUnitTranslation) <= unitSpeed)
+                        if (math.distance(targetTile.coordinates, selectedUnitTranslation) <= unitSpeed)
                         {
                             //Debug.Log("Distance = " + math.distance(targetTile.coordinates, selectedUnitTranslation));
                             PostUpdateCommands.AddComponent(targetEntity, new CanMove { });
                         }
                     });
+                }
             }
+            
         });
 
         Entities.WithAllReadOnly<CanMove, Tile, NeighbourTiles>().ForEach((Entity entity, ref Tile tile, ref NeighbourTiles neighbourTiles) =>

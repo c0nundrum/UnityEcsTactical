@@ -31,14 +31,14 @@ public class UnitMoveSystem : JobComponentSystem
                         {
                             // Already there
                             //soldier.Movement -= moveTo.moveCost;
-                            Debug.Log("Called short");
+                            //Debug.Log("Called short");
                             soldier.Movement -= moveTo.moveCost;
                             moveTo.positionInMove++;
                             moveTo.move = false;
                         }
                     } else
                     {
-                        Debug.Log("Called long");
+                        //Debug.Log("Called long");
                         soldier.Movement -= moveTo.moveCost;
                         moveTo.positionInMove++;
                         moveTo.longMove = false;

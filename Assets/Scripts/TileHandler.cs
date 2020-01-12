@@ -14,6 +14,7 @@ public class TileHandler : MonoBehaviour
 
     [SerializeField] private Mesh mesh;
     [SerializeField] private Material material;
+    [SerializeField] private Material StoneMaterial;
 
     public int width;
     public int height;
@@ -28,6 +29,76 @@ public class TileHandler : MonoBehaviour
         instance = this;
     }
 
+    private void createGrass(Entity entity, int j, int i)
+    {
+        entityManager.SetSharedComponentData(entity, new RenderMesh
+        {
+            mesh = mesh,
+            material = material
+        });
+
+        entityManager.SetComponentData(entity, new Translation
+        {
+            Value = new float3(1 * j, 1 * i, 0f)
+        });
+
+        entityManager.SetComponentData(entity, new NonUniformScale
+        {
+            Value = new float3(1, 1, 1)
+        });
+
+        entityManager.SetComponentData(entity, new Tile
+        {
+            walkable = true,
+            coordinates = new float2(j, i),
+            ownerEntity = entity,
+            MovementCost = 1
+        });
+
+        entityManager.SetComponentData(entity, new PathfindingComponent
+        {
+            isPath = false,
+            coordinates = new float2(j, i),
+            gCost = int.MaxValue,
+            hCost = 0
+        });
+    }
+
+    private void createStone(Entity entity, int j, int i)
+    {
+        entityManager.SetSharedComponentData(entity, new RenderMesh
+        {
+            mesh = mesh,
+            material = StoneMaterial
+        });
+
+        entityManager.SetComponentData(entity, new Translation
+        {
+            Value = new float3(1 * j, 1 * i, 0f)
+        });
+
+        entityManager.SetComponentData(entity, new NonUniformScale
+        {
+            Value = new float3(1, 1, 1)
+        });
+
+        entityManager.SetComponentData(entity, new Tile
+        {
+            walkable = false,
+            coordinates = new float2(j, i),
+            ownerEntity = entity,
+            MovementCost = 1
+        });
+
+        entityManager.SetComponentData(entity, new PathfindingComponent
+        {
+            isPath = false,
+            coordinates = new float2(j, i),
+            gCost = int.MaxValue,
+            hCost = 99
+        });
+    }
+
     // Start is called before the first frame update
     void Start()
     {
@@ -35,6 +106,8 @@ public class TileHandler : MonoBehaviour
         entityManager = World.Active.EntityManager;
 
         NativeArray<Entity> entityArray = new NativeArray<Entity>(width * height, Allocator.Temp);
+        NativeArray<Entity> entityArrayStone = new NativeArray<Entity>(width * height, Allocator.Temp);
+        NativeArray<Entity> entityArrayGrass = new NativeArray<Entity>(width * height, Allocator.Temp);
 
         EntityArchetype entityArchetype = entityManager.CreateArchetype(
             typeof(Tile),
@@ -45,52 +118,48 @@ public class TileHandler : MonoBehaviour
             typeof(NeighbourTiles),
             typeof(PathfindingComponent)
         );
+        EntityArchetype entityArchetype02 = entityManager.CreateArchetype(
+            typeof(Tile),
+            typeof(RenderMesh),
+            typeof(LocalToWorld),
+            typeof(Translation),
+            typeof(NonUniformScale),
+            typeof(NeighbourTiles),
+            typeof(PathfindingComponent)
+        );
 
 
-        entityManager.CreateEntity(entityArchetype, entityArray);
+        //entityManager.CreateEntity(entityArchetype, entityArray);
+        entityManager.CreateEntity(entityArchetype, entityArrayStone);
+        entityManager.CreateEntity(entityArchetype02, entityArrayGrass);
 
         Entity e = entityManager.CreateEntity(typeof(MapBuffer));
         Entity f = entityManager.CreateEntity(typeof(MapEntityBuffer));
 
+        
 
         int loopCounter = 0;
         for (int i = 0; i < width; i++)
         {
             for (int j = 0; j < height; j++)
             {
-                Entity entity = entityArray[loopCounter];
-                entityManager.SetSharedComponentData(entity, new RenderMesh
-                {
-                    mesh = mesh,
-                    material = material
-                });
+                //Entity entity = entityArray[loopCounter];                
+                Entity entity;                
 
-                entityManager.SetComponentData(entity, new Translation
+                int diceRoll = (int) math.floor(UnityEngine.Random.Range(0, 5));
+                //Debug.Log(diceRoll);
+                if (diceRoll <= 2 || i == 0 && j == 0)
                 {
-                    Value = new float3(1 * j, 1 * i, 0f)
-                });
-
-                entityManager.SetComponentData(entity, new NonUniformScale
+                    entity = entityArrayGrass[loopCounter];
+                    //entity = entityManager.CreateEntity(entityArchetype02);
+                    createGrass(entity, j, i);
+                } else
                 {
-                    Value = new float3(1, 1, 1)
-                });
-
-                entityManager.SetComponentData(entity, new Tile
-                {
-                    walkable = true,
-                    coordinates = new float2(j, i),
-                    ownerEntity = entity,
-                    MovementCost = 1
-                });
-
-                entityManager.SetComponentData(entity, new PathfindingComponent
-                {
-                    isPath = false,
-                    coordinates = new float2(j, i),
-                    gCost = int.MaxValue,
-                    hCost = 0
-                });
-
+                    entity = entityArrayStone[loopCounter];
+                    //entity = entity = entityManager.CreateEntity(entityArchetype);
+                    createStone(entity, j, i);
+                }
+                entityArray[loopCounter] = entity;
                 loopCounter++;
             }
         }

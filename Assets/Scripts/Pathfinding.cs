@@ -81,9 +81,13 @@ public class Pathfinding : ComponentSystem
             this.isMoving = moveTo.longMove;
         });
 
-        Entities.WithAll<OccupiedTile>().ForEach((Entity entity) =>
+        Entities.WithAll<OccupiedTile>().ForEach((Entity entity, ref OccupiedTile occupiedTile) =>
         {
-            this.startTileEntity = entity;
+            if (occupiedTile.entity.Equals(this.selectedUnit))
+            {
+                this.startTileEntity = entity;
+            }
+            
             targetTileEntity = entity;
         });
 
@@ -100,71 +104,78 @@ public class Pathfinding : ComponentSystem
 
         ComponentDataFromEntity<CanMove> canItMove = GetComponentDataFromEntity<CanMove>(true);
 
-        if (Input.GetMouseButton(0))
-        {
-            //THIS IS HOW TO SET DATA, only gets set in the next cycle this way, needs a job if you want to set it now
-            //foreach (Entity entity in entityBuffer)
-            //{
-            //    Tile tile = EntityManager.GetComponentData<Tile>(entity);
-            //    tile.walkable = false;
-            //    PostUpdateCommands.SetComponent<Tile>(entity, tile);
-
-            //}
-            
-            if (!isMoving)
+        //TODO - move Input handle somewhere else and disable the auto activation of this
+        //Only selected unities can move
+        Entities.WithNone<AIComponent>().WithAll<UnitSelected, AwaitActionFlag>().ForEach((Entity entity) => {
+            if (Input.GetMouseButton(0))
             {
-                //Resets all paths to default value
-                this.resetPaths();
+                //THIS IS HOW TO SET DATA, only gets set in the next cycle this way, needs a job if you want to set it now
+                //foreach (Entity entity in entityBuffer)
+                //{
+                //    Tile tile = EntityManager.GetComponentData<Tile>(entity);
+                //    tile.walkable = false;
+                //    PostUpdateCommands.SetComponent<Tile>(entity, tile);
 
-                //Initializes path as null, next line is legacy code
-                //List<Entity> path = findPath();
-                List<Entity> path = null;
+                //}
 
-                //If its a tile that can be moved to
-                
-                if (canItMove.Exists(targetTileEntity))
+                if (!isMoving)
                 {
-                    path = findPath();
-                }
-                if (path != null)
-                {
-                    DynamicBuffer<MapBuffer> currentPathBuffer = EntityManager.AddBuffer<MapBuffer>(selectedUnit);
-                    MoveTo moveTo = EntityManager.GetComponentData<MoveTo>(selectedUnit);
+                    //Resets all paths to default value
+                    this.resetPaths();
 
-                    moveTo.positionInMove = 0;
-                    PostUpdateCommands.SetComponent<MoveTo>(selectedUnit, moveTo );
+                    //Initializes path as null, next line is legacy code
+                    //List<Entity> path = findPath();
+                    List<Entity> path = null;
 
-                    //Element 0 is always the currently occupied tile, therefore not needed
-                    for (int i = 1; i < path.Count - 1; i++)
+                    //If its a tile that can be moved to
+
+                    if (canItMove.Exists(targetTileEntity))
                     {
-                        Tile tileFromPath = EntityManager.GetComponentData<Tile>(path[i]);
+                        path = findPath();
+                    }
+                    if (path != null)
+                    {
+                        DynamicBuffer<MapBuffer> currentPathBuffer = EntityManager.AddBuffer<MapBuffer>(selectedUnit);
+                        MoveTo moveTo = EntityManager.GetComponentData<MoveTo>(selectedUnit);
 
-                        //Check for duplicate tiles
-                        if(tileFromPath.coordinates.Equals(EntityManager.GetComponentData<Tile>(path[i - 1]).coordinates)) { continue; }
+                        moveTo.positionInMove = 0;
+                        PostUpdateCommands.SetComponent<MoveTo>(selectedUnit, moveTo);
 
-                        //If its not duplicate, add it
-                        currentPathBuffer.Add(tileFromPath);
+                        //Element 0 is always the currently occupied tile, therefore not needed
+                        for (int i = 1; i < path.Count - 1; i++)
+                        {
+                            Tile tileFromPath = EntityManager.GetComponentData<Tile>(path[i]);
 
-                        //Debug
-                        //Tile nextTileFromPath = EntityManager.GetComponentData<Tile>(path[i + 1]);
-                        //Debug.DrawLine(new Vector3(tileFromPath.coordinates.x, tileFromPath.coordinates.y, 0), new Vector3(nextTileFromPath.coordinates.x, nextTileFromPath.coordinates.y, 0), Color.red, 5f, false);
+                            //Check for duplicate tiles
+                            if (tileFromPath.coordinates.Equals(EntityManager.GetComponentData<Tile>(path[i - 1]).coordinates)) { continue; }
+
+                            //If its not duplicate, add it
+                            currentPathBuffer.Add(tileFromPath);
+
+                            //Debug
+                            Tile nextTileFromPath = EntityManager.GetComponentData<Tile>(path[i + 1]);
+                            Debug.DrawLine(new Vector3(tileFromPath.coordinates.x, tileFromPath.coordinates.y, 0), new Vector3(nextTileFromPath.coordinates.x, nextTileFromPath.coordinates.y, 0), Color.red, 5f, false);
+                        }
+
+                        //Add the last tile, not added due to debugging line inside the for
+                        currentPathBuffer.Add(EntityManager.GetComponentData<Tile>(path[path.Count - 1]));
+
+                        //Adds the component that fires the movement event after the update has happened entirely, might be moved to a job later
+                        PostUpdateCommands.AddComponent<ReadyToMove>(selectedUnit, new ReadyToMove { Destination = EntityManager.GetComponentData<Tile>(path[path.Count - 1]) });
+
+                        //Removes the AwaitActionFlag
+
+                        //foreach (var item in currentPathBuffer)
+                        //{
+                        //    Debug.Log(item.tile.coordinates);
+                        //}
                     }
 
-                    //Add the last tile, not added due to debugging line inside the for
-                    currentPathBuffer.Add(EntityManager.GetComponentData<Tile>(path[path.Count - 1]));
-
-                    //Adds the component that fires the movement event after the update has happened entirely, might be moved to a job later
-                    PostUpdateCommands.AddComponent<ReadyToMove>(selectedUnit, new ReadyToMove { Destination = EntityManager.GetComponentData<Tile>(path[path.Count - 1]) });
-
-                    //foreach (var item in currentPathBuffer)
-                    //{
-                    //    Debug.Log(item.tile.coordinates);
-                    //}
                 }
 
             }
-
-        }
+        });
+        
 
     }
 
@@ -240,6 +251,11 @@ public class Pathfinding : ComponentSystem
                 PathfindingComponent neighbourNode = EntityManager.GetComponentData<PathfindingComponent>(neighbourList[i]); 
 
                 if (closedList.Contains(neighbourList[i])) continue;
+                if (!EntityManager.GetComponentData<Tile>(neighbourList[i]).walkable)
+                {
+                    closedList.Add(neighbourList[i]);
+                    continue;
+                }
 
                 int tentativeGCost = currentNode.gCost + CalculateDistanceCost(currentNode, neighbourNode);
                 if (tentativeGCost < neighbourNode.gCost)

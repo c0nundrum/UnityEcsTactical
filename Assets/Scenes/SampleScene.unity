@@ -235,6 +235,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   mesh: {fileID: 10210, guid: 0000000000000000e000000000000000, type: 0}
   material: {fileID: 2100000, guid: 0c711dfac3e0a8d4a89bbf8c48ae0ee4, type: 2}
+  StoneMaterial: {fileID: 2100000, guid: 97bab438bb3eaf84b9ba02e7aeca4e88, type: 2}
   width: 10
   height: 10
   tileSelectedMaterial: {fileID: 2100000, guid: abeae96a3ef769846bbecea91643034b,
