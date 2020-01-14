@@ -88,3 +88,37 @@ public struct EntityBuffer : IBufferElementData
         return new EntityBuffer { entity = e };
     }
 }
+
+[InternalBufferCapacity(8)]
+public struct PlayerEntityBuffer : IBufferElementData
+{
+    public Entity entity;
+
+    // The following implicit conversions are optional, but can be convenient.
+    public static implicit operator Entity(PlayerEntityBuffer e)
+    {
+        return e.entity;
+    }
+
+    public static implicit operator PlayerEntityBuffer(Entity e)
+    {
+        return new PlayerEntityBuffer { entity = e };
+    }
+}
+
+[InternalBufferCapacity(8)]
+public struct AiBuffer : IBufferElementData
+{
+    public Entity entity;
+
+    // The following implicit conversions are optional, but can be convenient.
+    public static implicit operator Entity(AiBuffer e)
+    {
+        return e.entity;
+    }
+
+    public static implicit operator AiBuffer(Entity e)
+    {
+        return new AiBuffer { entity = e };
+    }
+}

@@ -8,45 +8,82 @@ using Unity.Collections;
 public class InputSystem : ComponentSystem
 {
     private DynamicBuffer<Entity> turnOrderBuffer;
+    private Entity gameHandler;
+    private CurrentTurn currentTurn;
+
+    private DynamicBuffer<Entity> playerBuffer;
+    private DynamicBuffer<Entity> aiBuffer;
+
+    private int currentIndex = 0;
 
     protected override void OnUpdate()
     {
+        Entities.WithAllReadOnly<CurrentTurn>().ForEach((Entity entity) => {        });
+
+        Entities.WithAllReadOnly<CurrentTurn>().ForEach((Entity entity, ref CurrentTurn currentTurn) => {
+            this.gameHandler = entity;
+            this.currentTurn = currentTurn;
+            this.playerBuffer = EntityManager.GetBuffer<PlayerEntityBuffer>(entity).Reinterpret<Entity>();
+            this.aiBuffer = EntityManager.GetBuffer<AiBuffer>(entity).Reinterpret<Entity>();
+        });
+
+        var selectedUnitCount = Entities.WithAll<UnitSelected>().ToEntityQuery().CalculateEntityCount();
+        if(selectedUnitCount == 0)
+        {
+            currentIndex = 0;
+            //TODO - This assumes there are entities in the field
+            if (currentTurn.turnOrder == TurnOrder.Player1 && playerBuffer.Length >= 0)
+            {               
+                Debug.Log("No unit selected, selecting player");
+                PostUpdateCommands.AddComponent(playerBuffer[currentIndex], new UnitSelected { });
+            } else if (currentTurn.turnOrder == TurnOrder.AITurn && aiBuffer.Length >= 0)
+            {
+                Debug.Log("No unit selected, selecting AI");
+                PostUpdateCommands.AddComponent(aiBuffer[0], new UnitSelected { });
+            }
+        }
 
         //DEBUG - WithAny, AIComponents that receives readytohandle should not be controled by the player
         Entities.WithAll<UnitSelected>().WithAny<AwaitActionFlag, ReadyToHandle>().ForEach((Entity entity) => {
             //End turn
             if (Input.GetKeyDown("space"))
             {
-                PostUpdateCommands.RemoveComponent<UnitSelected>(entity);
-
-                Entities.ForEach((DynamicBuffer<EntityBuffer> buffer) =>
+                if (currentTurn.turnOrder == TurnOrder.Player1 && currentIndex < playerBuffer.Length - 1)
                 {
-                    turnOrderBuffer = buffer.Reinterpret<Entity>();
-                    var turnOrderArray = turnOrderBuffer.AsNativeArray();
-                    for (int i = 0; i < turnOrderBuffer.Length; i++)
+                    PostUpdateCommands.AddComponent(playerBuffer[currentIndex + 1], new UnitSelected { });
+                    currentIndex++;
+                }
+                else if (currentTurn.turnOrder == TurnOrder.Player1 && currentIndex == playerBuffer.Length - 1)
+                {
+                    PostUpdateCommands.AddComponent(aiBuffer[0], new UnitSelected { });
+                    PostUpdateCommands.SetComponent(gameHandler, new CurrentTurn { turnOrder = TurnOrder.AITurn });
+                    currentIndex = 0;
+                }
+                           
+                if(currentTurn.turnOrder == TurnOrder.AITurn)
+                {
+                    if (currentIndex < aiBuffer.Length - 1)
                     {
-                        if (turnOrderBuffer[i].Equals(entity))
-                        {
-                            if (i == turnOrderBuffer.Length - 1)
-                            {
-                                PostUpdateCommands.AddComponent<UnitSelected>(turnOrderBuffer[0]);
-                            }
-                            else
-                            {
-                                PostUpdateCommands.AddComponent<UnitSelected>(turnOrderBuffer[i + 1]);
-                            }
-                            break;
-                        }
+                        PostUpdateCommands.AddComponent(aiBuffer[currentIndex + 1], new UnitSelected { });
+                        currentIndex++;
                     }
-                });
-
-                PostUpdateCommands.RemoveComponent<AwaitActionFlag>(entity);
+                    else if (currentIndex == aiBuffer.Length - 1)
+                    {
+                        PostUpdateCommands.AddComponent(playerBuffer[0], new UnitSelected { });
+                        PostUpdateCommands.SetComponent(gameHandler, new CurrentTurn { turnOrder = TurnOrder.Player1 });
+                        currentIndex = 0;
+                    }
+                }
+                
 
                 //TODO - This is debug, should be moved to when the action ends
                 if(EntityManager.HasComponent(entity, typeof(ReadyToHandle)))
                 {
                     PostUpdateCommands.RemoveComponent<ReadyToHandle>(entity);
                 }
+
+                PostUpdateCommands.RemoveComponent<UnitSelected>(entity);
+                PostUpdateCommands.RemoveComponent<AwaitActionFlag>(entity);
             }
         });
 

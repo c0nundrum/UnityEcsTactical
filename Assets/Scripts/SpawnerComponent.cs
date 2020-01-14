@@ -28,15 +28,24 @@ public class SpawnerComponent
     private void spawnActors()
     {
         //Creates the entity buffer
-        entityManager.CreateEntity(typeof(EntityBuffer));
+        Entity bufferEntity = entityManager.CreateEntity(typeof(EntityBuffer));
+        entityManager.AddBuffer<AiBuffer>(bufferEntity);
+        entityManager.AddBuffer<PlayerEntityBuffer>(bufferEntity);
+        entityManager.AddComponentData(bufferEntity, new CurrentTurn { turnOrder = TurnOrder.Player1 });
 
         Entity e = spawnEntity(playerArchetype);
         setUpEntity(e, TileHandler.instance.tileSelectedMesh, TileHandler.instance.playerMaterial, new float3(0f, 0f, 0f), 20);
+
+        e = spawnEntity(playerArchetype);
+        setUpEntity(e, TileHandler.instance.tileSelectedMesh, TileHandler.instance.playerMaterial, validCoordinates(), 20);
 
         //Entity f = spawnEntity(playerArchetype);
         //setUpEntity(f, TileHandler.instance.tileSelectedMesh, TileHandler.instance.playerMaterial, new float3(3f, 3f, 0f), 20);
 
         Entity f = spawnEntity(aiArchetype);
+        setUpEntity(f, TileHandler.instance.tileSelectedMesh, TileHandler.instance.enemyMaterial, validCoordinates(), 30);
+
+        f = spawnEntity(aiArchetype);
         setUpEntity(f, TileHandler.instance.tileSelectedMesh, TileHandler.instance.enemyMaterial, validCoordinates(), 30);
 
     }
