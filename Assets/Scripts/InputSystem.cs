@@ -11,7 +11,9 @@ public class InputSystem : ComponentSystem
 
     protected override void OnUpdate()
     {
-        Entities.WithAll<UnitSelected, AwaitActionFlag>().ForEach((Entity entity) => {
+
+        //DEBUG - WithAny, AIComponents that receives readytohandle should not be controled by the player
+        Entities.WithAll<UnitSelected>().WithAny<AwaitActionFlag, ReadyToHandle>().ForEach((Entity entity) => {
             //End turn
             if (Input.GetKeyDown("space"))
             {
@@ -39,6 +41,12 @@ public class InputSystem : ComponentSystem
                 });
 
                 PostUpdateCommands.RemoveComponent<AwaitActionFlag>(entity);
+
+                //TODO - This is debug, should be moved to when the action ends
+                if(EntityManager.HasComponent(entity, typeof(ReadyToHandle)))
+                {
+                    PostUpdateCommands.RemoveComponent<ReadyToHandle>(entity);
+                }
             }
         });
 

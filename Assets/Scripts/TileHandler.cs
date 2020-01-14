@@ -22,6 +22,9 @@ public class TileHandler : MonoBehaviour
     public Material tileSelectedMaterial;
     public Mesh tileSelectedMesh;
 
+    public Material playerMaterial;
+    public Material enemyMaterial;
+
     private EntityManager entityManager;
 
     private void Awake()
@@ -291,5 +294,8 @@ public class TileHandler : MonoBehaviour
             }
 
         }
+
+        SpawnerComponent spawnerComponent = new SpawnerComponent(entityArray);
+
     }
 }

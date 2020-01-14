@@ -241,6 +241,8 @@ MonoBehaviour:
   tileSelectedMaterial: {fileID: 2100000, guid: abeae96a3ef769846bbecea91643034b,
     type: 2}
   tileSelectedMesh: {fileID: 10210, guid: 0000000000000000e000000000000000, type: 0}
+  playerMaterial: {fileID: 2100000, guid: 5d9d3c0676925a341bf0571e1c77da10, type: 2}
+  enemyMaterial: {fileID: 2100000, guid: 00e486feabbb5f344b2c261cc0d27d6c, type: 2}
 --- !u!4 &813044609
 Transform:
   m_ObjectHideFlags: 0
@@ -264,7 +266,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 2007184139}
-  - component: {fileID: 2007184138}
   m_Layer: 0
   m_Name: Unit
   m_TagString: Untagged
@@ -272,20 +273,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &2007184138
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2007184137}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 568a87002fa9a1549a05b30329047803, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  mesh: {fileID: 10210, guid: 0000000000000000e000000000000000, type: 0}
-  material: {fileID: 2100000, guid: 5d9d3c0676925a341bf0571e1c77da10, type: 2}
 --- !u!4 &2007184139
 Transform:
   m_ObjectHideFlags: 0

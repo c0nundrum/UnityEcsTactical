@@ -54,17 +54,25 @@ public class GameStateHandlerSystem : ComponentSystem
         sortedArray.Sort(new TurnOrdercomparer { entityManager = EntityManager });
         
 
-        Entities.WithAll<AIComponent, SSoldier>().ForEach((Entity entity) => {
-            PostUpdateCommands.RemoveComponent<ReadyToHandle>(entity);
-        });
+        //Entities.WithAll<AIComponent, SSoldier>().ForEach((Entity entity) => {
+        //    PostUpdateCommands.RemoveComponent<ReadyToHandle>(entity);
+        //});
+
+        var selectedUnitCount = Entities.WithAll<UnitSelected>().ToEntityQuery().CalculateEntityCount();
+        if (selectedUnitCount == 0 && turnOrderBuffer.Length >= 0)
+        {
+            PostUpdateCommands.AddComponent<UnitSelected>(turnOrderBuffer[0]); 
+        }
 
         //Query for waiting
         var waiting = Entities.WithAll<AwaitActionFlag>().ToEntityQuery().CalculateEntityCount();
         if (waiting == 0)
         {
             //TODO - Query for all soldiers, should generalize this later with a more specialized component to designate actual game actors
-            Entities.WithAll<AIComponent, SSoldier>().ForEach((Entity entity) => {
-                PostUpdateCommands.AddComponent<ReadyToHandle>(entity);
+            Entities.WithAll<AIComponent, SSoldier>().ForEach((Entity entity, ref SSoldier soldier) => {
+                PostUpdateCommands.AddComponent<AwaitActionFlag>(entity);
+                //Reset all the atributes to the desired values
+                soldier.Movement = 4;
             });
 
             Entities.WithNone<AIComponent>().WithAll<SSoldier>().ForEach((Entity entity, ref SSoldier soldier) => {
