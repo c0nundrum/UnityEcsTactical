@@ -77,7 +77,7 @@ public class PathfindingClass
                     continue;
                 }
 
-                int tentativeGCost = currentNode.gCost + CalculateDistanceCost(currentNode, neighbourNode);
+                int tentativeGCost = currentNode.gCost + CalculateDistanceCost(currentNode, neighbourNode) + entityManager.GetComponentData<Tile>(neighbourList[i]).MovementCost; //this was changed to add a move cost to the tile;
                 if (tentativeGCost < neighbourNode.gCost)
                 {
                     //This can deffinitely be a parallell job

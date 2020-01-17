@@ -181,19 +181,19 @@ public class Pathfinding : ComponentSystem
 
     private Tile getTileFromEntityAt(int x, int y)
     {
-        Entity entity = entityBuffer[y * TileHandler.instance.height + x];
+        Entity entity = entityBuffer[y * TileHandler.instance.width + x];
         return EntityManager.GetComponentData<Tile>(entity);
     }
 
     private PathfindingComponent getPathFindingFromEntityAt(int x, int y)
     {
-        Entity entity = entityBuffer[y * TileHandler.instance.height + x];
+        Entity entity = entityBuffer[y * TileHandler.instance.width + x];
         return EntityManager.GetComponentData<PathfindingComponent>(entity);
     }
 
     private Entity getEntityAt(int x, int y)
     {
-        return entityBuffer[y * TileHandler.instance.height + x];    
+        return entityBuffer[y * TileHandler.instance.width + x];    
     }
 
     private void resetPaths()
@@ -257,7 +257,7 @@ public class Pathfinding : ComponentSystem
                     continue;
                 }
 
-                int tentativeGCost = currentNode.gCost + CalculateDistanceCost(currentNode, neighbourNode);
+                int tentativeGCost = currentNode.gCost + CalculateDistanceCost(currentNode, neighbourNode) + EntityManager.GetComponentData<Tile>(neighbourList[i]).MovementCost; //this was changed to add a move cost to the tile
                 if (tentativeGCost < neighbourNode.gCost)
                 {
                     //This can deffinitely be a parallell job

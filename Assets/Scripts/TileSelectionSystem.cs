@@ -27,6 +27,7 @@ public class TileSelectionSystem : ComponentSystem
             
             if(entityPosition.x - 0.5 < worldMousePosition.x && entityPosition.x + 0.5 > worldMousePosition.x && entityPosition.y - 0.5 < worldMousePosition.y && entityPosition.y + 0.5 > worldMousePosition.y)
             {
+                //Debug.Log(tile.MovementCost);
                 PostUpdateCommands.AddComponent(entity, new HoverTile { });
                 //Debug.Log(entityPosition);
                 Graphics.DrawMesh(

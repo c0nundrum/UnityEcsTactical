@@ -36,6 +36,7 @@ public class AIComponentMoveSystem : ComponentSystem
                     canMoveTiles[loopCounter] = en;
                     loopCounter++;
                 });
+                //DEBUG - Unit may choose its own tile to move, therefore not generating a move, causing errors
                 Entity chosen = canMoveTiles[(int)math.floor(UnityEngine.Random.Range(0, moveTileCount - 1))];
 
                 Tile chosenTile = EntityManager.GetComponentData<Tile>(chosen);

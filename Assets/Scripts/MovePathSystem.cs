@@ -10,6 +10,7 @@ using Unity.Mathematics;
 public struct UnitSelected : IComponentData { }
 
 [UpdateAfter(typeof(Pathfinding))]
+[UpdateAfter(typeof(AIComponentMoveSystem))]
 public class ActualMovementSystem : ComponentSystem
 {
     protected override void OnUpdate()
@@ -42,6 +43,7 @@ public class ActualMovementSystem : ComponentSystem
                 dynamicBuffer.RemoveRange(0, dynamicBuffer.Length);
 
                 moveTo.longMove = false;
+                PostUpdateCommands.AddComponent(entity, new CalculateMoveAreaFlag { });
                 PostUpdateCommands.RemoveComponent(entity, typeof(ReadyToMove));
 
             }

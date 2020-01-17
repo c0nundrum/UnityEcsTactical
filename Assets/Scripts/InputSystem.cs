@@ -36,10 +36,12 @@ public class InputSystem : ComponentSystem
             {               
                 Debug.Log("No unit selected, selecting player");
                 PostUpdateCommands.AddComponent(playerBuffer[currentIndex], new UnitSelected { });
+                PostUpdateCommands.AddComponent(playerBuffer[currentIndex], new CalculateMoveAreaFlag { });
             } else if (currentTurn.turnOrder == TurnOrder.AITurn && aiBuffer.Length >= 0)
             {
                 Debug.Log("No unit selected, selecting AI");
                 PostUpdateCommands.AddComponent(aiBuffer[0], new UnitSelected { });
+                PostUpdateCommands.AddComponent(aiBuffer[0], new CalculateMoveAreaFlag { });
             }
         }
 
@@ -51,11 +53,13 @@ public class InputSystem : ComponentSystem
                 if (currentTurn.turnOrder == TurnOrder.Player1 && currentIndex < playerBuffer.Length - 1)
                 {
                     PostUpdateCommands.AddComponent(playerBuffer[currentIndex + 1], new UnitSelected { });
+                    PostUpdateCommands.AddComponent(playerBuffer[currentIndex + 1], new CalculateMoveAreaFlag { });
                     currentIndex++;
                 }
                 else if (currentTurn.turnOrder == TurnOrder.Player1 && currentIndex == playerBuffer.Length - 1)
                 {
                     PostUpdateCommands.AddComponent(aiBuffer[0], new UnitSelected { });
+                    PostUpdateCommands.AddComponent(aiBuffer[0], new CalculateMoveAreaFlag { });
                     PostUpdateCommands.SetComponent(gameHandler, new CurrentTurn { turnOrder = TurnOrder.AITurn });
                     currentIndex = 0;
                 }
@@ -65,11 +69,13 @@ public class InputSystem : ComponentSystem
                     if (currentIndex < aiBuffer.Length - 1)
                     {
                         PostUpdateCommands.AddComponent(aiBuffer[currentIndex + 1], new UnitSelected { });
+                        PostUpdateCommands.AddComponent(aiBuffer[currentIndex + 1], new CalculateMoveAreaFlag { });
                         currentIndex++;
                     }
                     else if (currentIndex == aiBuffer.Length - 1)
                     {
                         PostUpdateCommands.AddComponent(playerBuffer[0], new UnitSelected { });
+                        PostUpdateCommands.AddComponent(playerBuffer[0], new CalculateMoveAreaFlag { });
                         PostUpdateCommands.SetComponent(gameHandler, new CurrentTurn { turnOrder = TurnOrder.Player1 });
                         currentIndex = 0;
                     }
