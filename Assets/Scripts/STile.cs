@@ -13,14 +13,14 @@ public struct Tile : IComponentData
 
 public struct NeighbourTiles : IComponentData
 {
-    public Tile nTile;
-    public Tile sTile;
-    public Tile eTile;
-    public Tile neTile;
-    public Tile seTile;
-    public Tile wTile;
-    public Tile nwTile;
-    public Tile swTile;
+    public Entity nTile;
+    public Entity sTile;
+    public Entity eTile;
+    public Entity neTile;
+    public Entity seTile;
+    public Entity wTile;
+    public Entity nwTile;
+    public Entity swTile;
 
 }
 

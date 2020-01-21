@@ -5,6 +5,7 @@ using Unity.Entities;
 using Unity.Transforms;
 using Unity.Mathematics;
 using Unity.Collections;
+using Unity.Jobs;
 
 public struct CanMove : IComponentData { }
 public struct CalculateMoveAreaFlag : IComponentData { }
@@ -264,3 +265,19 @@ public class CalculateMoveSystem : ComponentSystem
     }
 
 }
+
+////TODO - Finish moving this to a job system, pathfinding should also be inside a job for this
+//public class MoveJobSystem : JobComponentSystem
+//{
+//    private struct MoveSystemJob : IJobForEachWithEntity<CalculateMoveAreaFlag>
+//    {
+//        public void Execute(Entity entity, int index, ref CalculateMoveAreaFlag c0)
+//        {
+            
+//        }
+//    }
+//    protected override JobHandle OnUpdate(JobHandle inputDeps)
+//    {
+        
+//    }
+//}

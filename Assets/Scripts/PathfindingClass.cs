@@ -5,6 +5,242 @@ using Unity.Entities;
 using Unity.Collections;
 using Unity.Mathematics;
 using Unity.Jobs;
+using Unity.Burst;
+using System;
+
+public struct TileInfo : IEquatable<TileInfo>
+{
+    public Entity entity;
+    public Tile tile;
+    public PathfindingComponent pathfindingComponent;
+    public NeighbourTiles neighbours;
+
+    public bool Equals(TileInfo other)
+    {
+        return entity.Equals(other.entity);
+    }
+}
+
+[BurstCompile]
+public struct PopulateTileInfo : IJobParallelFor
+{
+    [ReadOnly]
+    public NativeArray<Entity> tileArray;
+    [ReadOnly]
+    public ComponentDataFromEntity<Tile> getTile;
+    [ReadOnly]
+    public ComponentDataFromEntity<PathfindingComponent> getPathfinding;
+    [ReadOnly]
+    public ComponentDataFromEntity<NeighbourTiles> getNeighbours;
+
+    [WriteOnly]
+    public NativeArray<TileInfo> tileInfoArray;
+
+    public void Execute(int index)
+    {
+        TileInfo tileInfos = new TileInfo
+        {
+            entity = tileArray[index],
+            tile = getTile[tileArray[index]],
+            pathfindingComponent = getPathfinding[tileArray[index]],
+            neighbours = getNeighbours[tileArray[index]]
+        };
+        tileInfoArray[index] = tileInfos;
+    }
+}
+
+[BurstCompile]
+public struct PathFindingJob : IJob
+{
+    [ReadOnly]
+    public int MOVE_STRAIGHT_COST;
+    [ReadOnly]
+    public int MOVE_DIAGONAL_COST;
+    [ReadOnly]
+    public int width;
+    [ReadOnly]
+    public int height;
+
+    public int IterationLimit;
+
+    public NativeList<Entity> openList;
+    public NativeList<Entity> closedList;
+    public NativeList<Entity> neighbourList;
+
+    //[ReadOnly]
+    public ComponentDataFromEntity<PathfindingComponent> pathFindingComponentFromData;
+    [ReadOnly]
+    public ComponentDataFromEntity<Tile> tileComponenFromData;
+
+    [ReadOnly]
+    public NativeArray<Entity> entityBuffer;
+    [ReadOnly]
+    public Entity startTileEntity;
+    [ReadOnly]
+    public Entity targetTileEntity;
+
+    [WriteOnly]
+    public NativeList<Entity> path; //out
+
+    public void Execute()
+    {
+        PathfindingComponent startNode = pathFindingComponentFromData[startTileEntity];
+        PathfindingComponent endNode = pathFindingComponentFromData[targetTileEntity];
+
+        openList.Add(startTileEntity);
+
+        //startNode.gCost = 0;
+        //startNode.hCost = CalculateDistanceCost(startNode, endNode);
+        //startNode.cameFromTile = tileComponenFromData[startTileEntity];
+
+        var coordinates = pathFindingComponentFromData[startTileEntity].coordinates;
+        pathFindingComponentFromData[startTileEntity] = new PathfindingComponent
+        {
+            coordinates = coordinates,
+            gCost = 0,
+            hCost = CalculateDistanceCost(startNode, endNode),
+            isPath = startNode.isPath,
+            cameFromTile = tileComponenFromData[startTileEntity]
+        };
+
+        while (IterationLimit > 0 && openList.Length > 0)
+        {
+
+            Entity currentEntity = GetLowestFCostNode(openList);
+
+            PathfindingComponent currentNode = pathFindingComponentFromData[currentEntity];
+
+            if (currentNode.coordinates.x == endNode.coordinates.x && currentNode.coordinates.y == endNode.coordinates.y)
+            {
+                //Reached final node
+                CalculatePath(targetTileEntity);
+            }
+
+            openList.RemoveAtSwapBack(openList.IndexOf(currentEntity));
+            closedList.Add(currentEntity);
+
+            GetNeighbours(currentEntity);
+
+            for (int i = 0; i < neighbourList.Length; i++)
+            {
+                //here we are copying the obj, not creating a pointer, therefore it doesnt work
+                PathfindingComponent neighbourNode = pathFindingComponentFromData[neighbourList[i]];
+
+                if (closedList.Contains(neighbourList[i])) continue;
+                if (!tileComponenFromData[neighbourList[i]].walkable)
+                {
+                    closedList.Add(neighbourList[i]);
+                    continue;
+                }
+
+                int tentativeGCost = currentNode.gCost + CalculateDistanceCost(currentNode, neighbourNode) + tileComponenFromData[neighbourList[i]].MovementCost; //this was changed to add a move cost to the tile;
+                if (tentativeGCost < neighbourNode.gCost)
+                {
+
+                    pathFindingComponentFromData[neighbourList[i]] = new PathfindingComponent
+                    {
+                        coordinates = neighbourNode.coordinates,
+                        gCost = tentativeGCost,
+                        hCost = CalculateDistanceCost(neighbourNode, endNode),
+                        isPath = true,
+                        cameFromTile = tileComponenFromData[currentEntity]
+                    };
+
+                    //neighbourNode.gCost = tentativeGCost;
+                    //neighbourNode.hCost = CalculateDistanceCost(neighbourNode, endNode);
+                    //neighbourNode.isPath = true;
+                    //neighbourNode.cameFromTile = tileComponenFromData[currentEntity];
+
+                    if (!openList.Contains(neighbourList[i]))
+                    {
+                        openList.Add(neighbourList[i]);
+                    }
+                }
+                
+
+            }
+            IterationLimit--;
+        }
+    }
+
+    private void GetNeighbours(Entity currentEntity)
+    {
+        neighbourList.Clear();
+        PathfindingComponent currentNode = pathFindingComponentFromData[currentEntity];
+
+        if (currentNode.coordinates.x - 1 >= 0)
+        {
+            //Left
+            neighbourList.Add(getEntityAt((int)math.floor(currentNode.coordinates.x - 1), (int)math.floor(currentNode.coordinates.y)));
+            //Left Down
+            if (currentNode.coordinates.y - 1 >= 0) neighbourList.Add(getEntityAt((int)math.floor(currentNode.coordinates.x - 1), (int)math.floor(currentNode.coordinates.y - 1)));
+            //Left Up
+            if (currentNode.coordinates.y + 1 < height) neighbourList.Add(getEntityAt((int)math.floor(currentNode.coordinates.x - 1), (int)math.floor(currentNode.coordinates.y + 1)));
+        }
+        if (currentNode.coordinates.x + 1 < width)
+        {
+            //Right
+            neighbourList.Add(getEntityAt((int)math.floor(currentNode.coordinates.x + 1), (int)math.floor(currentNode.coordinates.y)));
+            //Right Down
+            if (currentNode.coordinates.y - 1 >= 0) neighbourList.Add(getEntityAt((int)math.floor(currentNode.coordinates.x + 1), (int)math.floor(currentNode.coordinates.y - 1)));
+            //Right Up
+            if (currentNode.coordinates.y + 1 < height) neighbourList.Add(getEntityAt((int)math.floor(currentNode.coordinates.x + 1), (int)math.floor(currentNode.coordinates.y + 1)));
+        }
+        //Down
+        if (currentNode.coordinates.y - 1 >= 0) neighbourList.Add(getEntityAt((int)math.floor(currentNode.coordinates.x), (int)math.floor(currentNode.coordinates.y - 1)));
+        //Up
+        if (currentNode.coordinates.y + 1 < height) neighbourList.Add(getEntityAt((int)math.floor(currentNode.coordinates.x), (int)math.floor(currentNode.coordinates.y + 1)));
+
+    }
+
+    private Entity GetLowestFCostNode(NativeList<Entity> entityList)
+    {
+        Entity lowestFCostEntity = entityList[0];
+        PathfindingComponent lowestFCostNode = pathFindingComponentFromData[entityList[0]];
+        for (int i = 1; i < entityList.Length; i++)
+        {
+            PathfindingComponent component = pathFindingComponentFromData[entityList[i]];
+            if (component.gCost + component.hCost < lowestFCostNode.gCost + lowestFCostNode.hCost)
+            {
+                lowestFCostEntity = entityList[i];
+                lowestFCostNode = component;
+            }
+        }
+        return lowestFCostEntity;
+    }
+
+    private int CalculateDistanceCost(PathfindingComponent a, PathfindingComponent b)
+    {
+        int xDistance = (int)math.abs(a.coordinates.x - b.coordinates.x);
+        int yDistance = (int)math.abs(a.coordinates.y - b.coordinates.y);
+        int remaining = math.abs(xDistance - yDistance);
+        return MOVE_DIAGONAL_COST * math.min(xDistance, yDistance) + MOVE_STRAIGHT_COST * remaining;
+    }
+
+    private NativeList<Entity> CalculatePath(Entity endEntity)
+    {
+        PathfindingComponent endNode = pathFindingComponentFromData[endEntity];
+
+        path.Add(endEntity);
+        path.Add(endNode.cameFromTile.ownerEntity);
+
+        PathfindingComponent currentNode = endNode;
+
+        while (currentNode.isPath)
+        {
+            path.Add(currentNode.cameFromTile.ownerEntity);
+            currentNode = pathFindingComponentFromData[getEntityAt((int)math.floor(currentNode.cameFromTile.coordinates.x), (int)math.floor(currentNode.cameFromTile.coordinates.y))];
+        }
+
+        return path;
+    }
+
+    private Entity getEntityAt(int x, int y)
+    {
+        return entityBuffer[y * width + x];
+    }
+
+}
 
 public class PathfindingClass 
 {

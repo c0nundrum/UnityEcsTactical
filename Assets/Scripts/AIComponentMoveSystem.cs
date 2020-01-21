@@ -5,12 +5,38 @@ using Unity.Entities;
 using Unity.Collections;
 using Unity.Mathematics;
 using Unity.Jobs;
+using Unity.Burst;
+
+[BurstCompile]
+public struct ResetJob : IJob
+{
+    [ReadOnly]
+    public NativeArray<Entity> arrayEntitytile;
+    [ReadOnly]
+    public ComponentDataFromEntity<Tile> getComponentTileData;
+
+    public ComponentDataFromEntity<PathfindingComponent> getComponentPathfindingComponentData;    
+
+    public void Execute()
+    {
+        for(int index = 0; index < arrayEntitytile.Length; index++)
+        {
+            PathfindingComponent c = getComponentPathfindingComponentData[arrayEntitytile[index]];
+            getComponentPathfindingComponentData[arrayEntitytile[index]] = new PathfindingComponent
+            {
+                coordinates = c.coordinates,
+                gCost = int.MaxValue,
+                isPath = false,
+                cameFromTile = getComponentTileData[arrayEntitytile[index]]
+            };
+        }
+    }
+}
 
 [UpdateAfter(typeof(CalculateMoveSystem))]
 public class AIComponentMoveSystem : ComponentSystem
 {
     private NativeArray<Entity> canMoveTiles;
-    private PathfindingClass pathfinding;
 
     //MapBuffer
     private DynamicBuffer<Entity> entityBuffer;
@@ -27,7 +53,6 @@ public class AIComponentMoveSystem : ComponentSystem
         Entities.WithNone<ReadyToHandle>().WithAll<UnitSelected, AIComponent, SSoldier, MoveTo, AwaitActionFlag>().ForEach((Entity entity, ref SSoldier soldier, ref MoveTo moving) => {
         if (!moving.longMove)
         {
-                this.resetPaths();
                 var moveTileCount = Entities.WithAll<CanMove>().ToEntityQuery().CalculateEntityCount();
                 canMoveTiles = new NativeArray<Entity>(moveTileCount, Allocator.Temp);
                 int loopCounter = 0;
@@ -36,20 +61,62 @@ public class AIComponentMoveSystem : ComponentSystem
                     canMoveTiles[loopCounter] = en;
                     loopCounter++;
                 });
+
                 //DEBUG - Unit may choose its own tile to move, therefore not generating a move, causing errors
                 Entity chosen = canMoveTiles[(int)math.floor(UnityEngine.Random.Range(0, moveTileCount - 1))];
-
                 Tile chosenTile = EntityManager.GetComponentData<Tile>(chosen);
-                //Debug.Log(chosenTile.coordinates);
 
                 Entity startTileEntity = entityBuffer[(int)math.floor(soldier.currentCoordinates.y * TileHandler.instance.width + soldier.currentCoordinates.x)];
 
-                List<Entity> path = null;
+                NativeArray<Entity> tileEntityArray = entityBuffer.ToNativeArray(Allocator.TempJob);
 
-                pathfinding = new PathfindingClass(EntityManager, entityBuffer);
-                path = pathfinding.findPath(startTileEntity, chosen, GetComponentDataFromEntity<PathfindingComponent>(false));
+                ResetJob resetJob = new ResetJob
+                {
+                    arrayEntitytile = tileEntityArray,
+                    getComponentPathfindingComponentData = GetComponentDataFromEntity<PathfindingComponent>(false),
+                    getComponentTileData = GetComponentDataFromEntity<Tile>(true),
+                };
 
-                if (path != null)
+                JobHandle resetJobHandle = resetJob.Schedule();
+
+                NativeList<Entity> pathJob = new NativeList<Entity>(6, Allocator.TempJob);
+                NativeList<Entity> neighbourList = new NativeList<Entity>(6, Allocator.TempJob);
+                NativeList<Entity> closedList = new NativeList<Entity>(Allocator.TempJob);
+                NativeList<Entity> openList = new NativeList<Entity>(Allocator.TempJob);
+
+                resetJobHandle.Complete();
+
+                PathFindingJob pathFindingJob = new PathFindingJob
+                {
+                    height = TileHandler.instance.height,
+                    width = TileHandler.instance.width,
+                    neighbourList = neighbourList,
+                    tileComponenFromData = GetComponentDataFromEntity<Tile>(true),
+                    closedList = closedList,
+                    openList = openList,
+                    entityBuffer = tileEntityArray,
+                    IterationLimit = 20,
+                    MOVE_DIAGONAL_COST = 14,
+                    MOVE_STRAIGHT_COST = 10,
+                    pathFindingComponentFromData = GetComponentDataFromEntity<PathfindingComponent>(false),
+                    startTileEntity = startTileEntity,
+                    targetTileEntity = chosen,
+                    path = pathJob
+
+                };
+
+                JobHandle pathJobHandle = pathFindingJob.Schedule();
+                pathJobHandle.Complete();
+
+                tileEntityArray.Dispose();
+                closedList.Dispose();
+                openList.Dispose();
+                
+                neighbourList.Dispose();
+
+                NativeList<Entity> path = ReverseNativeList(pathJob);
+                
+                if (path.Length >= 0)
                 {
                     DynamicBuffer<MapBuffer> currentPathBuffer = EntityManager.AddBuffer<MapBuffer>(entity);
                     MoveTo moveTo = EntityManager.GetComponentData<MoveTo>(entity);
@@ -58,7 +125,7 @@ public class AIComponentMoveSystem : ComponentSystem
                     PostUpdateCommands.SetComponent<MoveTo>(entity, moveTo);
 
                     //Element 0 is always the currently occupied tile, therefore not needed
-                    for (int i = 1; i < path.Count; i++)
+                    for (int i = 1; i < path.Length; i++)
                     {
                         Tile tileFromPath = EntityManager.GetComponentData<Tile>(path[i]);
 
@@ -76,7 +143,7 @@ public class AIComponentMoveSystem : ComponentSystem
                     //Generated null path
                     Debug.Log("Generated Null move");
                 }
-
+                pathJob.Dispose();
                 PostUpdateCommands.AddComponent(entity, new ReadyToHandle { });
 
             }
@@ -84,14 +151,37 @@ public class AIComponentMoveSystem : ComponentSystem
         });
     }
 
-    private void resetPaths()
+    private NativeList<Entity> ReverseNativeList(NativeList<Entity> arr)
     {
-        Entities.WithAll<Tile, PathfindingComponent>().ForEach((Entity entity, ref Tile tile, ref PathfindingComponent pathfindingComponent) =>
+        for (int i = 0; i < arr.Length / 2; i++)
         {
-            pathfindingComponent.isPath = false;
-            pathfindingComponent.gCost = int.MaxValue;
-            pathfindingComponent.cameFromTile = tile;
-        });
+            var tmp = arr[i];
+            arr[i] = arr[arr.Length - i - 1];
+            arr[arr.Length - i - 1] = tmp;
+        }
+
+        return arr;
     }
 
+}
+
+[BurstCompile]
+public struct ReverseNativeArrayJob : IJob
+{
+    [ReadOnly]
+    public NativeList<Entity> arr;
+
+    [WriteOnly]
+    public NativeList<Entity> outArray;
+
+    public void Execute()
+    {
+        outArray = arr;
+        for (int i = 0; i < outArray.Length / 2; i++)
+        {
+            var tmp = outArray[i];
+            outArray[i] = outArray[outArray.Length - i - 1];
+            outArray[outArray.Length - i - 1] = tmp;
+        }
+    }
 }

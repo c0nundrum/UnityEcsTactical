@@ -19,7 +19,7 @@ public class CurrentTileSystem : ComponentSystem
 
     protected override void OnUpdate()
     {
-
+        
         Entities.ForEach((DynamicBuffer<EntityBuffer> buffer) =>
         {
             entityBuffer = buffer.Reinterpret<Entity>();
