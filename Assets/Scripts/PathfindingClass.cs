@@ -1,51 +1,69 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using System.Collections.Generic;
 using Unity.Entities;
 using Unity.Collections;
 using Unity.Mathematics;
 using Unity.Jobs;
 using Unity.Burst;
-using System;
 
-public struct TileInfo : IEquatable<TileInfo>
+[BurstCompile]
+public struct ResetJob : IJob
 {
-    public Entity entity;
-    public Tile tile;
-    public PathfindingComponent pathfindingComponent;
-    public NeighbourTiles neighbours;
+    [ReadOnly]
+    public NativeArray<Entity> arrayEntitytile;
+    [ReadOnly]
+    public ComponentDataFromEntity<Tile> getComponentTileData;
 
-    public bool Equals(TileInfo other)
+    public ComponentDataFromEntity<PathfindingComponent> getComponentPathfindingComponentData;
+
+    public void Execute()
     {
-        return entity.Equals(other.entity);
+        for (int index = 0; index < arrayEntitytile.Length; index++)
+        {
+            PathfindingComponent c = getComponentPathfindingComponentData[arrayEntitytile[index]];
+            getComponentPathfindingComponentData[arrayEntitytile[index]] = new PathfindingComponent
+            {
+                coordinates = c.coordinates,
+                gCost = int.MaxValue,
+                isPath = false,
+                cameFromTile = getComponentTileData[arrayEntitytile[index]]
+            };
+        }
     }
 }
 
 [BurstCompile]
-public struct PopulateTileInfo : IJobParallelFor
+public struct ReverseNativeArrayJob : IJob
 {
     [ReadOnly]
-    public NativeArray<Entity> tileArray;
-    [ReadOnly]
-    public ComponentDataFromEntity<Tile> getTile;
-    [ReadOnly]
-    public ComponentDataFromEntity<PathfindingComponent> getPathfinding;
-    [ReadOnly]
-    public ComponentDataFromEntity<NeighbourTiles> getNeighbours;
+    public NativeList<Entity> arr;
 
     [WriteOnly]
-    public NativeArray<TileInfo> tileInfoArray;
+    public NativeList<Entity> outArray;
 
-    public void Execute(int index)
+    public void Execute()
     {
-        TileInfo tileInfos = new TileInfo
+        outArray = arr;
+        for (int i = 0; i < outArray.Length / 2; i++)
         {
-            entity = tileArray[index],
-            tile = getTile[tileArray[index]],
-            pathfindingComponent = getPathfinding[tileArray[index]],
-            neighbours = getNeighbours[tileArray[index]]
-        };
-        tileInfoArray[index] = tileInfos;
+            var tmp = outArray[i];
+            outArray[i] = outArray[outArray.Length - i - 1];
+            outArray[outArray.Length - i - 1] = tmp;
+        }
+    }
+}
+
+[BurstCompile]
+public struct GetBufferArray : IJobForEachWithEntity_EB<MapEntityBuffer>
+{
+    [WriteOnly]
+    public NativeArray<Entity> output;
+
+    public void Execute(Entity entity, int index, DynamicBuffer<MapEntityBuffer> buffer)
+    {
+        for (int i = 0; i < buffer.Length; i++)
+        {
+            output[i] = buffer[i];
+        }
     }
 }
 

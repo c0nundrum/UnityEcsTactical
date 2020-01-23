@@ -7,31 +7,6 @@ using Unity.Mathematics;
 using Unity.Jobs;
 using Unity.Burst;
 
-[BurstCompile]
-public struct ResetJob : IJob
-{
-    [ReadOnly]
-    public NativeArray<Entity> arrayEntitytile;
-    [ReadOnly]
-    public ComponentDataFromEntity<Tile> getComponentTileData;
-
-    public ComponentDataFromEntity<PathfindingComponent> getComponentPathfindingComponentData;    
-
-    public void Execute()
-    {
-        for(int index = 0; index < arrayEntitytile.Length; index++)
-        {
-            PathfindingComponent c = getComponentPathfindingComponentData[arrayEntitytile[index]];
-            getComponentPathfindingComponentData[arrayEntitytile[index]] = new PathfindingComponent
-            {
-                coordinates = c.coordinates,
-                gCost = int.MaxValue,
-                isPath = false,
-                cameFromTile = getComponentTileData[arrayEntitytile[index]]
-            };
-        }
-    }
-}
 
 [UpdateAfter(typeof(CalculateMoveSystem))]
 public class AIComponentMoveSystem : ComponentSystem
@@ -163,25 +138,4 @@ public class AIComponentMoveSystem : ComponentSystem
         return arr;
     }
 
-}
-
-[BurstCompile]
-public struct ReverseNativeArrayJob : IJob
-{
-    [ReadOnly]
-    public NativeList<Entity> arr;
-
-    [WriteOnly]
-    public NativeList<Entity> outArray;
-
-    public void Execute()
-    {
-        outArray = arr;
-        for (int i = 0; i < outArray.Length / 2; i++)
-        {
-            var tmp = outArray[i];
-            outArray[i] = outArray[outArray.Length - i - 1];
-            outArray[outArray.Length - i - 1] = tmp;
-        }
-    }
 }
