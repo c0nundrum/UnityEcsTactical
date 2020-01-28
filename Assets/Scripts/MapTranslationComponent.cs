@@ -52,9 +52,9 @@ public class MapTranslationComponent
             typeof(RenderMesh),
             typeof(LocalToWorld),
             typeof(Translation),
-            typeof(NonUniformScale),
-            typeof(NeighbourTiles),
-            typeof(PathfindingComponent)
+            typeof(NonUniformScale)
+            //typeof(NeighbourTiles),
+            //typeof(PathfindingComponent)
         ));
 
         entityArchetypeDict.Add('#', entityManager.CreateArchetype(
@@ -62,9 +62,9 @@ public class MapTranslationComponent
             typeof(RenderMesh),
             typeof(LocalToWorld),
             typeof(Translation),
-            typeof(NonUniformScale),
-            typeof(NeighbourTiles),
-            typeof(PathfindingComponent)
+            typeof(NonUniformScale)
+            //typeof(NeighbourTiles),
+            //typeof(PathfindingComponent)
         ));
     }
 
@@ -151,18 +151,18 @@ public class MapTranslationComponent
         entityManager.SetComponentData(entity, new Tile
         {
             walkable = false,
-            coordinates = new float2(j, i),
-            ownerEntity = entity,
+            coordinates = new int2(j, i),
+            //ownerEntity = entity,
             MovementCost = 99
         });
 
-        entityManager.SetComponentData(entity, new PathfindingComponent
-        {
-            isPath = false,
-            coordinates = new float2(j, i),
-            gCost = int.MaxValue,
-            hCost = 99
-        });
+        //entityManager.SetComponentData(entity, new PathfindingComponent
+        //{
+        //    isPath = false,
+        //    coordinates = new float2(j, i),
+        //    gCost = int.MaxValue,
+        //    hCost = 99
+        //});
     }
 
     private void CreateGrass(Entity entity, int loopCounter)
@@ -189,19 +189,19 @@ public class MapTranslationComponent
         entityManager.SetComponentData(entity, new Tile
         {
             walkable = true,
-            coordinates = new float2(j, i),
-            ownerEntity = entity,
+            coordinates = new int2(j, i),
+            //ownerEntity = entity,
             //MovementCost = 1
             MovementCost = (int)math.floor(UnityEngine.Random.Range(1, 3))
         });
 
-        entityManager.SetComponentData(entity, new PathfindingComponent
-        {
-            isPath = false,
-            coordinates = new float2(j, i),
-            gCost = int.MaxValue,
-            hCost = 0
-        });
+        //entityManager.SetComponentData(entity, new PathfindingComponent
+        //{
+        //    isPath = false,
+        //    coordinates = new float2(j, i),
+        //    gCost = int.MaxValue,
+        //    hCost = 0
+        //});
     }
 
     public NativeArray<Entity> GetEntityArray()

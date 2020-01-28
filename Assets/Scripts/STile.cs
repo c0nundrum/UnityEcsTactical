@@ -1,61 +1,70 @@
 ﻿using Unity.Entities;
 using Unity.Mathematics;
 
+//public struct Tile : IComponentData
+//{
+
+//    public bool walkable;
+//    public float2 coordinates;
+//    public Entity ownerEntity;
+//    public int MovementCost;
+
+//}
+
 public struct Tile : IComponentData
 {
 
     public bool walkable;
-    public float2 coordinates;
-    public Entity ownerEntity;
+    public int2 coordinates;
     public int MovementCost;
 
 }
 
-public struct NeighbourTiles : IComponentData
-{
-    public Entity nTile;
-    public Entity sTile;
-    public Entity eTile;
-    public Entity neTile;
-    public Entity seTile;
-    public Entity wTile;
-    public Entity nwTile;
-    public Entity swTile;
+//public struct NeighbourTiles : IComponentData
+//{
+//    public Entity nTile;
+//    public Entity sTile;
+//    public Entity eTile;
+//    public Entity neTile;
+//    public Entity seTile;
+//    public Entity wTile;
+//    public Entity nwTile;
+//    public Entity swTile;
 
-}
+//}
 
-public struct PathfindingComponent : IComponentData
-{
-    public bool isPath;
-    public Tile cameFromTile;
-    public float2 coordinates;
-    public int gCost;
-    public int hCost;
-    public int getFCost()
-    {
-        return gCost + hCost;
-    }
+//public struct PathfindingComponent : IComponentData
+//{
+//    public bool isPath;
+//    public Tile cameFromTile;
+//    public float2 coordinates;
+//    public int gCost;
+//    public int hCost;
+//    public int getFCost()
+//    {
+//        return gCost + hCost;
+//    }
 
-}
+//}
 
-[InternalBufferCapacity(8)]
-public struct MapBuffer : IBufferElementData
-{
-    public Tile tile;
+//[InternalBufferCapacity(8)]
+//public struct MapBuffer : IBufferElementData
+//{
+//    public Tile tile;
 
-    // The following implicit conversions are optional, but can be convenient.
-    public static implicit operator Tile(MapBuffer e)
-    {
-        return e.tile;
-    }
+//    // The following implicit conversions are optional, but can be convenient.
+//    public static implicit operator Tile(MapBuffer e)
+//    {
+//        return e.tile;
+//    }
 
-    public static implicit operator MapBuffer(Tile e)
-    {
-        return new MapBuffer { tile = e };
-    }
-}
+//    public static implicit operator MapBuffer(Tile e)
+//    {
+//        return new MapBuffer { tile = e };
+//    }
+//}
 
-[InternalBufferCapacity(8)]
+[InternalBufferCapacity(100)]
 public struct MapEntityBuffer : IBufferElementData
 {
     public Entity entity;

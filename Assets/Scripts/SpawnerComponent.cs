@@ -35,18 +35,22 @@ public class SpawnerComponent
 
         Entity e = spawnEntity(playerArchetype);
         setUpEntity(e, TileHandler.instance.tileSelectedMesh, TileHandler.instance.playerMaterial, new float3(0f, 0f, 0f), 20);
+        entityManager.AddBuffer<PathBuffer>(e);
 
         e = spawnEntity(playerArchetype);
         setUpEntity(e, TileHandler.instance.tileSelectedMesh, TileHandler.instance.playerMaterial, validCoordinates(), 20);
+        entityManager.AddBuffer<PathBuffer>(e);
 
         //Entity f = spawnEntity(playerArchetype);
         //setUpEntity(f, TileHandler.instance.tileSelectedMesh, TileHandler.instance.playerMaterial, new float3(3f, 3f, 0f), 20);
 
         Entity f = spawnEntity(aiArchetype);
         setUpEntity(f, TileHandler.instance.tileSelectedMesh, TileHandler.instance.enemyMaterial, validCoordinates(), 30);
+        entityManager.AddBuffer<PathBuffer>(f);
 
         f = spawnEntity(aiArchetype);
         setUpEntity(f, TileHandler.instance.tileSelectedMesh, TileHandler.instance.enemyMaterial, validCoordinates(), 30);
+        entityManager.AddBuffer<PathBuffer>(f);
 
     }
 
@@ -97,7 +101,7 @@ public class SpawnerComponent
             material = material
         });
 
-        entityManager.SetComponentData(entity, new MoveTo { move = false, position = float3.zero, moveSpeed = 5f });
+        //entityManager.SetComponentData(entity, new MoveTo { move = false, position = float3.zero, moveSpeed = 5f });
         entityManager.SetComponentData(entity, new Translation { Value = coordinates });
         entityManager.AddComponentData(entity, new AwaitActionFlag { });
         entityManager.SetComponentData(entity, new SSoldier { currentCoordinates = new float2(coordinates.x, coordinates.y), Movement = 4, Initiative = initiative });
@@ -109,7 +113,7 @@ public class SpawnerComponent
         return entityManager.CreateArchetype(
             typeof(SSoldier),
             typeof(RenderMesh),
-            typeof(MoveTo),
+            //typeof(MovePath),
             typeof(LocalToWorld),
             typeof(Translation),
             typeof(Scale));
@@ -120,7 +124,7 @@ public class SpawnerComponent
         return entityManager.CreateArchetype(
             typeof(SSoldier),
             typeof(RenderMesh),
-            typeof(MoveTo),
+            //typeof(MovePath),
             typeof(LocalToWorld),
             typeof(AIComponent),
             typeof(Translation),
