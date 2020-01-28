@@ -95,6 +95,18 @@ public class PathfindingSystem : JobComponentSystem
         }
     }
 
+    [BurstCompile]
+    private struct RemoveComponent : IJobForEachWithEntity<CalculateMove>
+    {
+        public EntityCommandBuffer.Concurrent commandBuffer;
+        public ComponentType typeOfCalculateMove;
+
+        public void Execute(Entity entity, int index, [ReadOnly] ref CalculateMove c0)
+        {
+            commandBuffer.RemoveComponent(index, entity, typeOfCalculateMove);
+        }
+    }
+
     private EndSimulationEntityCommandBufferSystem endSimulationEntityCommandBufferSystem;
     private NativeArray<CalculateMove> m_array;
     private NativeList<int2> pathOutput;
@@ -198,6 +210,14 @@ public class PathfindingSystem : JobComponentSystem
                     };
                     inputDeps = updateBuffer.Schedule(inputDeps);
                 }
+            } else
+            {
+                RemoveComponent removeComponent = new RemoveComponent
+                {
+                    commandBuffer = endSimulationEntityCommandBufferSystem.CreateCommandBuffer().ToConcurrent(),
+                    typeOfCalculateMove = typeof(CalculateMove)
+                };
+                inputDeps = removeComponent.Schedule(this, inputDeps);
             }
             e_array.Dispose();
         }
