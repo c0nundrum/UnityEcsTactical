@@ -17,7 +17,7 @@ public class SpawnerComponent
 
     public SpawnerComponent(NativeArray<Entity> arrayOfEntities)
     {
-        this.entityManager = World.Active.EntityManager;
+        this.entityManager = World.DefaultGameObjectInjectionWorld.EntityManager;
         this.playerArchetype = createPlayerArchetype();
         this.aiArchetype = createAIArchetype();
         this.arrayOfEntities = arrayOfEntities;
@@ -104,7 +104,7 @@ public class SpawnerComponent
         //entityManager.SetComponentData(entity, new MoveTo { move = false, position = float3.zero, moveSpeed = 5f });
         entityManager.SetComponentData(entity, new Translation { Value = coordinates });
         entityManager.AddComponentData(entity, new AwaitActionFlag { });
-        entityManager.SetComponentData(entity, new SSoldier { currentCoordinates = new float2(coordinates.x, coordinates.y), Movement = 4, Initiative = initiative });
+        entityManager.SetComponentData(entity, new SSoldier { currentCoordinates = new int2((int)math.floor(coordinates.x), (int)math.floor(coordinates.y)), Movement = 4, Initiative = initiative });
         entityManager.SetComponentData(entity, new Scale { Value = 1f });
     }
 
@@ -118,6 +118,15 @@ public class SpawnerComponent
             typeof(Translation),
             typeof(Scale));
     }
+
+    //private EntityArchetype createMouseSingleton()
+    //{
+    //    return entityManager.CreateArchetype(
+    //        typeof(RenderMesh),
+    //        typeof(LocalToWorld),
+    //        typeof(Translation),
+    //        typeof(MouseCursor));
+    //}
 
     private EntityArchetype createAIArchetype()
     {

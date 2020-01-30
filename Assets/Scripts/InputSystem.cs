@@ -99,6 +99,7 @@ public class InputSystem : ComponentSystem
                 float3 screenMousePosition = Input.mousePosition;
                 float3 worldMousePosition = Camera.main.ScreenToWorldPoint(screenMousePosition);
 
+                //TODO - Make this ternary for broadcasting on the threads
                 int2 destination;
                 if (math.frac(worldMousePosition.x) > 0.5)
                     destination.x = (int)math.ceil(worldMousePosition.x);
