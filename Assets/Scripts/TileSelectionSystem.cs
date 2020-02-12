@@ -93,7 +93,7 @@ public class TileSelectionSystem : JobComponentSystem
         if (mapEntityArray.IsCreated)
             mapEntityArray.Dispose();
 
-        inputDeps.Complete();
+        //inputDeps.Complete();
 
         float3 screenMousePosition = Input.mousePosition;
         float3 worldMousePosition = Camera.main.ScreenToWorldPoint(screenMousePosition);

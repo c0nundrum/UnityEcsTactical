@@ -5,6 +5,7 @@ using Unity.Entities;
 using Unity.Collections;
 using Unity.Mathematics;
 using Unity.Transforms;
+using Unity.Rendering;
 
 [UpdateAfter(typeof(GameStateHandlerSystem))]
 public class InputSystem : ComponentSystem
@@ -82,7 +83,6 @@ public class InputSystem : ComponentSystem
                         currentIndex = 0;
                     }
                 }
-                
 
                 //TODO - This is debug, should be moved to when the action ends
                 if(EntityManager.HasComponent(entity, typeof(ReadyToHandle)))
@@ -92,6 +92,33 @@ public class InputSystem : ComponentSystem
 
                 PostUpdateCommands.RemoveComponent<UnitSelected>(entity);
                 PostUpdateCommands.RemoveComponent<AwaitActionFlag>(entity);
+            }
+
+            //TODO - Screen Culling system concept
+            //Debug, please delete this
+            //Seems to work, at 1024 tiles, aproximately 1300km of ingame units we go from 7fps to over 250, we just need to store the actual tile info
+            //somewhere and just display what is needed (comparatively we had 350 fps with 10x10 grid, seems everything is scaling well so far)
+            //we should have a limit for copying the pathfinding data
+            if (Input.GetKeyDown(KeyCode.P))
+            {
+                EntityQuery e_GroupMap = GetEntityQuery(typeof(MapEntityBuffer));
+                NativeArray<Entity> e_array = e_GroupMap.ToEntityArray(Allocator.TempJob);
+
+                DynamicBuffer<Entity> mapEntityBuffers = EntityManager.GetBuffer<MapEntityBuffer>(e_array[0]).Reinterpret<Entity>();
+                for(int x = 0; x < TileHandler.instance.width; x++)
+                {
+                    for (int y = 0; y < TileHandler.instance.height; y++)
+                    {
+                        if (x > 10 || y > 10)
+                        {
+                            PostUpdateCommands.RemoveComponent(mapEntityBuffers[y * TileHandler.instance.width + x], typeof(RenderMesh));
+                            PostUpdateCommands.RemoveComponent(mapEntityBuffers[y * TileHandler.instance.width + x], typeof(Transform));
+                            PostUpdateCommands.RemoveComponent(mapEntityBuffers[y * TileHandler.instance.width + x], typeof(LocalToWorld));
+                        }
+                    }
+                }
+                e_array.Dispose();
+
             }
 
             if (Input.GetKeyDown(KeyCode.Mouse0))

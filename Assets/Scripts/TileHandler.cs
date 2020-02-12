@@ -51,7 +51,7 @@ public class TileHandler : MonoBehaviour
 
         //Entity e = entityManager.CreateEntity(typeof(MapBuffer));
         Entity f = entityManager.CreateEntity(typeof(MapEntityBuffer));
-     
+
 
         //Setup Neighbour components
         for (int i = 0; i < width * height; i++)

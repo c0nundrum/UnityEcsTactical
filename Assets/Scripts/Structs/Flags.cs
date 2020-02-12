@@ -20,3 +20,5 @@ public struct MovePath : IComponentData {
 }
 
 public struct UnitFinishedMove : IComponentData { }
+
+public struct CanMoveToTile : IComponentData { }
